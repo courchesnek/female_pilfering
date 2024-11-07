@@ -22,6 +22,7 @@ pilfering <- ggplot(long_data, aes(x = midden, y = value, fill = variable)) +
                       labels = c("Total Pictures", "Owner", 
                                  "Owner With Cone", "Intruder", 
                                  "Intruder With Cone"))
+pilfering
 
 ggsave(filename = "Output/pilfering.jpeg", 
        plot = pilfering, 

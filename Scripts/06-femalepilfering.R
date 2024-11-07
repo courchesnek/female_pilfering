@@ -45,7 +45,7 @@ trapping <- trapping %>%
 filtered_trapping <- trapping %>%
   left_join(breeding_window, by = "year") %>%  #join on the year
   filter(date >= breeding_start & date <= breeding_end) %>%  #filter for records within the breeding window
-  filter(sex == "F")
+  filter(sex == "F") %>%
   dplyr::select(-earliest_birth_date, -latest_birth_date, -breeding_start, -breeding_end)  #remove breeding window columns
 
 
@@ -54,20 +54,27 @@ filtered_trapping <- trapping %>%
 censusf <- spring_females %>%
   rename(censusflocx = locx,
          censusflocy = locy) %>%
-  dplyr::select(squirrel_id, censusflocx, censusflocy)
+  dplyr::select(squirrel_id, censusflocx, censusflocy, date) %>%
+  mutate(year = format(as.Date(date), "%Y")) %>%
+  mutate(year = as.numeric(year)) %>%
+  dplyr::select(-date)
+  
 
 censusm <- spring_males %>%
   rename(censusmlocx = locx,
          censusmlocy = locy) %>%
-  dplyr::select(squirrel_id, censusmlocx, censusmlocy)
+  dplyr::select(squirrel_id, censusmlocx, censusmlocy, date) %>%
+  mutate(year = format(as.Date(date), "%Y")) %>%
+  mutate(year = as.numeric(year)) %>%
+  dplyr::select(-date)
 
 intruders <- filtered_trapping %>%
-  left_join(censusf, by = "squirrel_id", suffix = c("", "_f"), relationship = "many-to-many") %>%  #merge with female census data by squirrel_id
-  left_join(censusm, by = "squirrel_id", suffix = c("", "_m"), relationship = "many-to-many") %>%  #merge with male census data by squirrel_id
+  left_join(censusf, by = c("squirrel_id", "year"), suffix = c("", "_f"), relationship = "many-to-many") %>%  #merge with female census data by squirrel_id and year
+  left_join(censusm, by = c("squirrel_id", "year"), suffix = c("", "_m"), relationship = "many-to-many") %>%  #merge with male census data by squirrel_id and year
   mutate(
     intruder = case_when(
-      locx == censusflocx & locy == censusflocy ~ 0,  #trapped on her own midden
-      locx == censusmlocx & locy == censusmlocy ~ 1,  #trapped on a male's midden
+      locx == censusflocx & locy == censusflocy ~ 0,  #trapped on her own midden in the same year
+      locx == censusmlocx & locy == censusmlocy ~ 1,  #trapped on a male's midden in the same year
       TRUE ~ NA_real_  #no match found
     )
   ) %>%
@@ -87,7 +94,6 @@ summary_stats <- intruders %>%
     proportion = n() / nrow(intruders) * 100  #proportion as a percentage
   )
 
-
 # data distribution -------------------------------------------------------
 ggplot(intruders, aes(x = factor(intruder))) +
   geom_bar(fill = "skyblue", color = "black") +
@@ -98,16 +104,9 @@ ggplot(intruders, aes(x = factor(intruder))) +
   ) +
   theme_minimal()
 
-
-
-
-
-
-
-
-
-
-
+# chi-square --------------------------------------------------------------
+intruder_table <- table(intruders$intruder)
+chi_test <- chisq.test(intruder_table)
 
 
 
