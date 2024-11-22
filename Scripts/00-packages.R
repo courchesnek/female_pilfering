@@ -17,4 +17,5 @@ library(raster)
 library(arm)
 library(rsq)
 library(stringr)
+library(effsize)
 
