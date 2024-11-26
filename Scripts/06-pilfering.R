@@ -119,30 +119,30 @@ sex_ratio_analysis_unfiltered <- intruders %>%
 write.csv(sex_ratio_analysis_unfiltered, "Output/sex_ratio_unfiltered.csv", row.names = FALSE)
 
 #remove males on female middens as this is representative of mate searching, NOT an intent to pilfer
-sex_ratio_analysis <- intruders %>%
-  mutate(
-    sex_combination = case_when(
-      sex_trap == "M" & sex_census == "M" ~ "Male on Male",
-      sex_trap == "F" & sex_census == "F" ~ "Female on Female",
-      sex_trap == "M" & sex_census == "F" ~ "Male on Female",
-      sex_trap == "F" & sex_census == "M" ~ "Female on Male",
-      TRUE ~ "Other"
-    )
-  ) %>%
-  filter(!(sex_trap == "M" & sex_census == "F")) %>%  #exclude male on female middens (mating behavior)
-  #group by sex_combination and calculate the count of intrusions for each group
-  group_by(sex_combination) %>%
-  summarise(
-    intrusion_count = sum(intruder == 1, na.rm = TRUE),  #count intrusions (where intruder = 1)
-    .groups = "drop"  #this ensures the data is ungrouped after summarisation
-  ) %>%
-  #add the total count of intrusions across all sex combinations
-  mutate(
-    total_count = sum(intrusion_count),  #total intrusions for all combinations
-    intrusion_rate = intrusion_count / total_count  #calculate intrusion rate
-  ) %>%
-  #arrange the results for better readability
-  arrange(sex_combination)
+# sex_ratio_analysis <- intruders %>%
+#   mutate(
+#     sex_combination = case_when(
+#       sex_trap == "M" & sex_census == "M" ~ "Male on Male",
+#       sex_trap == "F" & sex_census == "F" ~ "Female on Female",
+#       sex_trap == "M" & sex_census == "F" ~ "Male on Female",
+#       sex_trap == "F" & sex_census == "M" ~ "Female on Male",
+#       TRUE ~ "Other"
+#     )
+#   ) %>%
+#   filter(!(sex_trap == "M" & sex_census == "F")) %>%  #exclude male on female middens (mating behavior)
+#   #group by sex_combination and calculate the count of intrusions for each group
+#   group_by(sex_combination) %>%
+#   summarise(
+#     intrusion_count = sum(intruder == 1, na.rm = TRUE),  #count intrusions (where intruder = 1)
+#     .groups = "drop"  #this ensures the data is ungrouped after summarisation
+#   ) %>%
+#   #add the total count of intrusions across all sex combinations
+#   mutate(
+#     total_count = sum(intrusion_count),  #total intrusions for all combinations
+#     intrusion_rate = intrusion_count / total_count  #calculate intrusion rate
+#   ) %>%
+#   #arrange the results for better readability
+#   arrange(sex_combination)
 
 #save
 write.csv(sex_ratio_analysis, "Output/sex_ratio.csv", row.names = FALSE)
@@ -160,7 +160,7 @@ intruders_stats <- intruders %>%
       TRUE ~ "Other"
     )
   ) %>%
-  filter(intruder == 1, sex_combination != "Male on Female")
+  filter(intruder == 1)
 
 #create a contingency table
 contingency_table <- table(
@@ -171,6 +171,8 @@ head(contingency_table)
 
 #perform the chi-square test of independence
 chisq_test <- chisq.test(contingency_table)
+chisq_test$observed
+chisq_test$expected
 
 chisq_test
 
@@ -186,31 +188,37 @@ cramers_v
 
 
 # plots -------------------------------------------------------------------
-#total counts
-# ggplot(sex_ratio_analysis, aes(x = sex_combination, y = intrusion_count, fill = sex_combination)) +
-#   geom_bar(stat = "identity") +
-#   labs(title = "Intrusion Counts by Sex Combination",
-#        x = "Sex Combination",
-#        y = "Intrusion Count") +
-#   theme_minimal() +
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-#rates
-intrusion_rates <- ggplot(sex_ratio_analysis, aes(x = sex_combination, y = intrusion_rate, fill = sex_combination)) +
+##total counts
+intrusions <- ggplot(sex_ratio_analysis_unfiltered, aes(x = sex_combination, y = intrusion_count, fill = sex_combination)) +
   geom_bar(stat = "identity") +
-  labs(title = "Intrusion Rates by Sex Combination",
+  labs(title = "Intrusion Counts by Sex Combination",
        x = "Sex Combination",
-       y = "Intrusion Rate") +
+       y = "Intrusion Count") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         plot.title = element_text(hjust = 0.5))
 
-ggsave("Output/intrusion_rates.jpeg", plot = intrusion_rates, width = 8, height = 6)
+intrusions
+ggsave("Output/intrusions.jpeg", plot = intrusions, width = 8, height = 6)
+
+#rates
+# intrusion_rates <- ggplot(sex_ratio_analysis_unfiltered, aes(x = sex_combination, y = intrusion_rate, fill = sex_combination)) +
+#   geom_bar(stat = "identity") +
+#   labs(title = "Intrusion Rates by Sex Combination",
+#        x = "Sex Combination",
+#        y = "Intrusion Rate") +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         plot.title = element_text(hjust = 0.5))
+# 
+# ggsave("Output/intrusion_rates.jpeg", plot = intrusion_rates, width = 8, height = 6)
+# 
+# intrusion_rates
 
 #proportions
-ggplot(sex_ratio_analysis, aes(x = "", y = intrusion_count, fill = sex_combination)) +
-  geom_bar(stat = "identity", width = 1) +
-  coord_polar("y") +
-  labs(title = "Proportion of Intrusions by Sex Combination") +
-  theme_void()
+# ggplot(sex_ratio_analysis_unfiltered, aes(x = "", y = intrusion_count, fill = sex_combination)) +
+#   geom_bar(stat = "identity", width = 1) +
+#   coord_polar("y") +
+#   labs(title = "Proportion of Intrusions by Sex Combination") +
+#   theme_void()
 

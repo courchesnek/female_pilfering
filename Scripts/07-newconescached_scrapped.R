@@ -63,7 +63,6 @@ midden_cones <- midden_cones %>%
   dplyr::select(-date, -cache_size_total2, -cache_size_new_open, -cache_size_new_closed, -byear, -cache_size_total, -cache_size_old)
 
 
-
 # combine cache and intrusion data ----------------------------------------------------------
 intruders <- read.csv("Output/intruders.csv")
 
@@ -174,7 +173,6 @@ if(length(never_intruded) > 0 && length(been_intruded) > 0) {
 #perform a cliff's delta to measure effect size (the magnitude of an observed effect, independent of sample size)
 cliff_delta <- cliff.delta(never_intruded, been_intruded)
 print(cliff_delta)
-
 
 
 # plots -------------------------------------------------------------------
