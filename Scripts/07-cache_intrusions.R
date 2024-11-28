@@ -164,38 +164,73 @@ ggplot(cache_intrusions, aes(x=intrusion_count, y=cache_size_new)) +
 # data transformation - since non-normal distribution ---------------------
 ##log transformations - +1 because data contains zeros and cannot do log(0)
 cache_intrusions$log_cache_size_new <- log(cache_intrusions$cache_size_new + 1)
-cache_intrusions$log_intrusion_count <- log(cache_intrusions$intrusion_count + 1)
+cache_intrusions$log_total_cones <- log(cache_intrusions$total_cones + 1)
 
 #visualizing the transformed data to check for improvements in distribution
 par(mfrow=c(1,2))  #setting up the plotting area to display two plots side by side
 hist(cache_intrusions$log_cache_size_new, main="Log Transformed Cache Size", xlab="Log of New Cone Caches + 1")
-hist(cache_intrusions$log_intrusion_count, main="Log Transformed Intrusion Count", xlab="Log of Intrusion Count + 1")
 
-
-
-# building the model - generalized linear model ---------------------------
-##remove transformations from dataset
-cache_intrusions <- cache_intrusions %>%
-  dplyr::select(-log_cache_size_new, -log_intrusion_count)
-
+# building the model - WHAT TYPE!?!?!? ---------------------------
 ##data still non-normally distributed after transformations, therefore need to use a glm with a non-normal distribution
 ##full_model <- glm(cache_size_new ~ intrusion_count * sex * total_cones, family = Gamma(link = "log"), data = cache_intrusions)
 ###can't use a glm with gamma because of 0's and values approaching 0 in both cache_size_new and intrusion_count
 
 #fit the linear model
-model <- lm(cache_size_new ~ intrusion_count * sex * total_cones, data = cache_intrusions)
+model_linear <- lm(cache_size_new ~ sex * intrusion_count + total_cones, data = cache_intrusions)
 summary(model)
 
 #plot residuals to check assumptions
 par(mfrow = c(2, 2))
 plot(model)
 
+#compare to linear model with log transformation (adding 1 to avoid log(0) issues)
+model_log <- lm(log_cache_size_new ~ sex * intrusion_count + log_total_cones, data = cache_intrusions)
+summary(model_log)
+plot(model_log)
+
+#compare models via AIC, BIC
+AIC(model_linear, model_log)
+BIC(model_linear, model_log)
+#log of cache_size_new & total_cones is better
 
 
+# Hurdle Model ------------------------------------------------------------
+#create a binary indicator for BOTH log_cache_size_new and intrusion_count
+cache_intrusions$cache_present = as.numeric(cache_intrusions$log_cache_size_new > 0)
+cache_intrusions$intrusion_present <- as.numeric(cache_intrusions$intrusion_count > 0)
 
+#fit a logistic regression model to predict whether caching and/or intrusions occur
+logistic_model <- glm(cache_present ~ sex * intrusion_count + sex * intrusion_present + log_total_cones, family = binomial, data = cache_intrusions)
+summary(logistic_model)
 
+##move on to step 2
+#subset the data to only include observations where caching occurs - model only applies to positive outcomes
+positives <- cache_intrusions[cache_intrusions$cache_present == 1 & cache_intrusions$intrusion_count > 0,]
 
+#model setup
+model_positives <- lm(log_cache_size_new ~ sex * intrusion_count + log_total_cones, data = positive_caches)
+summary(model_positives)
 
+#model diagnostics
+par(mfrow=c(2,2))
+plot(model_positives)
+
+#generate predictions for scatter plots
+##create predictions table
+predictions <- predict(model_positives, newdata = positives, type = "response")
+length(predictions)
+
+##add these predictions to 'positives' dataframe for plotting
+positives$predicted_cache <- predictions
+
+#scatter plot
+ggplot(positives, aes(x = intrusion_count, y = predicted_cache, color = sex)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", aes(group = sex), se = FALSE) +  #add a linear regression line for each sex
+  labs(x = "Intrusion Count", y = "Predicted Log Cache Size New",
+       title = "Model Predictions of Log Cache Size New by Intrusion Count and Sex") +
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  theme_minimal()
 
 
 
