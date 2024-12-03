@@ -177,11 +177,11 @@ hist(cache_intrusions$log_cache_size_new, main="Log Transformed Cache Size", xla
 
 #fit the linear model
 model_linear <- lm(cache_size_new ~ sex * intrusion_count + total_cones, data = cache_intrusions)
-summary(model)
+summary(model_linear)
 
 #plot residuals to check assumptions
 par(mfrow = c(2, 2))
-plot(model)
+plot(model_linear)
 
 #compare to linear model with log transformation (adding 1 to avoid log(0) issues)
 model_log <- lm(log_cache_size_new ~ sex * intrusion_count + log_total_cones, data = cache_intrusions)
@@ -194,21 +194,22 @@ BIC(model_linear, model_log)
 #log of cache_size_new & total_cones is better
 
 
-# Hurdle Model ------------------------------------------------------------
+# Model ------------------------------------------------------------
 #create a binary indicator for BOTH log_cache_size_new and intrusion_count
 cache_intrusions$cache_present = as.numeric(cache_intrusions$log_cache_size_new > 0)
 cache_intrusions$intrusion_present <- as.numeric(cache_intrusions$intrusion_count > 0)
 
 #fit a logistic regression model to predict whether caching and/or intrusions occur
-logistic_model <- glm(cache_present ~ sex * intrusion_count + sex * intrusion_present + log_total_cones, family = binomial, data = cache_intrusions)
+logistic_model <- glm(cache_present ~ sex * intrusion_count * intrusion_present + sex + log_total_cones, family = binomial, data = cache_intrusions)
 summary(logistic_model)
 
 ##move on to step 2
-#subset the data to only include observations where caching occurs - model only applies to positive outcomes
-positives <- cache_intrusions[cache_intrusions$cache_present == 1 & cache_intrusions$intrusion_count > 0,]
+#subset the data to only include observations where caching occurs
+positives <- cache_intrusions %>%
+  filter(cache_present == 1)
 
 #model setup
-model_positives <- lm(log_cache_size_new ~ sex * intrusion_count + log_total_cones, data = positive_caches)
+model_positives <- lm(log_cache_size_new ~ sex + sex * intrusion_count * intrusion_present + log_total_cones, data = positives)
 summary(model_positives)
 
 #model diagnostics
@@ -229,8 +230,20 @@ ggplot(positives, aes(x = intrusion_count, y = predicted_cache, color = sex)) +
   geom_smooth(method = "lm", aes(group = sex), se = FALSE) +  #add a linear regression line for each sex
   labs(x = "Intrusion Count", y = "Predicted Log Cache Size New",
        title = "Model Predictions of Log Cache Size New by Intrusion Count and Sex") +
-  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  scale_color_manual(values = c("red", "blue"), labels = c("Female", "Male")) +
   theme_minimal()
+
+#effect plot with jtools
+effect_plot(model = model_positives, pred = "intrusion_count", modx = "sex", mod2 = "intrusion_present", data = positives, 
+            interval = TRUE, plot.points = TRUE)
+
+
+
+
+
+
+
+
 
 
 
