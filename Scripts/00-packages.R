@@ -1,5 +1,7 @@
 #commonly used packages
+devtools::install_github("KluaneRedSquirrelProject/krsp")
 library(krsp)
+library(devtools)
 library(data.table)
 library(dplyr)
 library(lubridate)
@@ -25,7 +27,6 @@ library(vcd)
 library(gamlss)
 library(quantreg)
 library(mgcv)
-
-
-
-
+library(jtools)
+library(pROC)
+library(interactions)
