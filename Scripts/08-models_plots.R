@@ -239,6 +239,7 @@ logistic_model <- glm(cache_present ~ sex * intrusion_count + log_total_cones,
                       data = cache_intrusions)
 
 summary(logistic_model)
+par(mfrow=c(2,2))
 plot(logistic_model)
 
 #evaluate the binary model
@@ -274,6 +275,7 @@ summary(model_positives)
 
 
 #evaluating continuous model (linear regression)
+par(mfrow=c(2,2))
 plot(model_positives)
 
 #generate predictions for plotting - need to generate predictions for both models
