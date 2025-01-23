@@ -101,7 +101,8 @@ trapping_fixed <- trapping_fixed %>%
 trapping_fixed$locx <- sapply(trapping_fixed$locx, numeric_to_alphabet)
 
 # merge all years together ------------------------------------------------
-alltrapping <- bind_rows(dbatrapping_fixed, trapping_fixed)
+alltrapping <- bind_rows(dbatrapping_fixed, trapping_fixed) %>%
+  rename(grid = gr)
 
 #save
 write.csv(alltrapping, file = "Input/alltrapping.csv", row.names = FALSE)
