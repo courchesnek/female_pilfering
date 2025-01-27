@@ -6,12 +6,24 @@ intruders <- read.csv("Input/intruders.csv")
 
 #filter data for female intruders
 female_intrusions <- intruders %>%
-  filter(sex_trap == "F") %>%  #focus on female intruders
+  filter(sex_trap == "F",
+         grid %in% c("KL", "SU", "CH")) %>%  #focus on female intruders and control grids
   group_by(year, grid, sex_owner) %>%
   mutate(
     trapped_on_male = ifelse(sex_owner == "M", 1, 0)  #1 if male midden, 0 otherwise
   )
 
+#data summary
+season_snow_summary <- female_intrusions %>%
+  group_by(season, snow) %>%
+  summarise(
+    total_intrusions = n(),                 
+    male_midden_intrusions = sum(trapped_on_male),  
+    female_midden_intrusions = total_intrusions - male_midden_intrusions,
+    .groups = "drop")
+
+#save
+write.csv(season_snow_summary, file = "Output/season_snow_summary.csv", row.names = FALSE)
 
 # model -------------------------------------------------------------------
 #relevel 'season' to make the 'other' category the reference level
@@ -44,10 +56,9 @@ odds_ratio_table <- data.frame(
   Odds_Ratio = odds_ratios,
   Lower_CI = conf_int[, 1],
   Upper_CI = conf_int[, 2],
-  p_value = coef_summary[, "Pr(>|z|)"]
-)
+  p_value = coef_summary[, "Pr(>|z|)"])
 
-# Print the table
+#print the table
 print(odds_ratio_table, row.names = FALSE)
 
 # plot --------------------------------------------------------------------

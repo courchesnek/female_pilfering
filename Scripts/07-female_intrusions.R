@@ -4,13 +4,24 @@ source("Scripts/00-packages.R")
 #load in data
 intruders <- read.csv("Input/intruders.csv")
 
-#filter data for female intruders
+#filter data for female intruders and only control grids (non-experimental)
 female_intrusions <- intruders %>%
-  filter(sex_trap == "F")
+  filter(sex_trap == "F",
+         grid %in% c("KL", "SU", "CH"))
 
 #add a binary outcome
 female_intrusions <- female_intrusions %>%
   mutate(trapped_on_male = ifelse(sex_owner == "M", 1, 0))  #1 if trapped on a male midden, 0 if trapped on a female midden
+
+#data summary
+summary <- female_intrusions %>%
+  summarise(
+    total_intrusions = n(),                  
+    male_midden_intrusions = sum(trapped_on_male),  
+    female_midden_intrusions = total_intrusions - male_midden_intrusions, 
+    .groups = "drop")
+
+write.csv(summary, file = "Output/females_summary.csv", row.names = FALSE)
 
 #logistic regression, and report magnitude ----------------------------------------------------
 model <- glm(trapped_on_male ~ sex_ratio,
@@ -38,6 +49,9 @@ prop_female <- 1 - prop_male
 #count of observations
 n <- nrow(female_intrusions)
 
+#number of years in dataset
+num_years <- female_intrusions %>%
+  summarise(unique_years = n_distinct(year))
 
 # plot sex ratio ----------------------------------------------------------
 #calculate proportions by sex ratio

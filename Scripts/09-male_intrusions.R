@@ -21,6 +21,16 @@ ggplot(male_intrusions, aes(x = season, y = count, fill = season)) +
   labs(title = "Male Intrusions Across Seasons", x = "Season", y = "Count of Intrusions") +
   theme_minimal()
 
+#data summary
+male_summary <- male_intrusions %>%
+  group_by(season) %>%
+  summarise(
+    total_intrusions = n(),                 
+    .groups = "drop")
+
+#save
+write.csv(male_summary, file = "Output/male_summary.csv", row.names = FALSE)
+
 # #pull in yearly cones and add to male_intrusions
 # yearly_cones <- read.csv("Input/yearly_cones.csv")
 # 
@@ -47,6 +57,28 @@ plot(nb_model$residuals, type = 'b', main = "Residuals from Negative Binomial Mo
      xlab = "Index", ylab = "Residuals")
 abline(h = 0, col = "red")
 
+#summary stats ------------------------------------------------------------
+#extract the coefficients
+coef_summary <- summary(nb_model)$coefficients
+
+#calculate odds ratios
+odds_ratios <- exp(coef_summary[, "Estimate"])
+
+#include 95% confidence intervals for odds ratios
+conf_int <- exp(confint(nb_model))
+
+#combine into a summary table
+odds_ratio_table <- data.frame(
+  Predictor = rownames(coef_summary),
+  Estimate = coef_summary[, "Estimate"],
+  Odds_Ratio = odds_ratios,
+  Lower_CI = conf_int[, 1],
+  Upper_CI = conf_int[, 2],
+  p_value = coef_summary[, "Pr(>|z|)"])
+
+#print the table
+print(odds_ratio_table, row.names = FALSE)
+
 # plot --------------------------------------------------------------------
 box_plot <- ggplot(male_intrusions, aes(x = season, y = count, fill = season)) +
   geom_boxplot() +
@@ -54,8 +86,12 @@ box_plot <- ggplot(male_intrusions, aes(x = season, y = count, fill = season)) +
        x = "Season",
        y = "Total Count of Male Intrusions") +
   scale_fill_brewer(palette = "Set3") +
+  scale_x_discrete(labels = c("breeding" = "Breeding", 
+                              "lactation" = "Lactation", 
+                              "other" = "Non-Reproductive")) +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
 
 box_plot
 
