@@ -66,13 +66,11 @@ print(odds_ratio_table, row.names = FALSE)
 bar_data <- intruders %>%
   group_by(snow, season) %>%
   summarise(
-    total_count = n(), # Total female intrusions (on all middens)
-    count = sum(sex_owner == "M"), # Female intrusions on male middens
-    .groups = "drop"
-  ) %>%
+    total_count = n(), 
+    count = sum(sex_owner == "M"),
+    .groups = "drop") %>%
   mutate(
-    prop = count / total_count # Proportion of intrusions on male middens
-  )
+    prop = count / total_count)
 
 #bar graph
 bar_graph <- ggplot(bar_data, aes(x = season, y = prop, fill = snow)) +
@@ -94,22 +92,38 @@ bar_graph
 #save
 ggsave("Output/bar_graph.jpeg", plot = bar_graph, width = 8, height = 6)
 
-box_whisker <- ggplot(odds_ratio_table, aes(x = reorder(Predictor, Estimate), y = Estimate)) +
+odds_ratio_table$Predictor <- factor(odds_ratio_table$Predictor, levels = c(
+  "(Intercept)",
+  "seasonbreeding",
+  "seasonlactation",
+  "snowsnow",
+  "sex_ratio"))
+
+box_whisker <- ggplot(odds_ratio_table, aes(x = Predictor, y = Estimate)) +
   geom_point(size = 3, color = "blue") +
   geom_errorbar(aes(ymin = log(Lower_CI), ymax = log(Upper_CI)), width = 0.2, color = "blue") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  coord_flip() +  # Flip the coordinates for horizontal bars
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.2))) +
   labs(
     title = "Effect of Snow, Season, and Sex Ratio on Female Intrusions on Male Middens",
     x = "Predictor",
-    y = "Log-Odds Estimate (with 95% CI)"
-  ) +
-  theme_minimal()
+    y = "Log-Odds Estimate (with 95% CI)") +
+  scale_x_discrete(labels = c(
+    "(Intercept)" = "Baseline\n(non-breeding, no snow, balanced sex ratio)",
+    "sex_ratio" = "Sex ratio\n(females:males)",
+    "snowsnow" = "Snow cover",
+    "seasonbreeding" = "Breeding season",
+    "seasonlactation" = "Lactation season")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.text.y = element_text(size = 10))
 
 box_whisker
 
 #save
-ggsave("Output/box_whisker.jpeg", plot = box_whisker, width = 8, height = 6)
+ggsave("Output/box_whisker.jpeg", plot = box_whisker, width = 12, height = 6)
 
 
 

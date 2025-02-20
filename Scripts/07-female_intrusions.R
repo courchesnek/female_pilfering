@@ -72,13 +72,11 @@ sex_ratios <- ggplot(intrusion_summary, aes(x = sex_ratio, y = prop_female, colo
   labs(
     title = "Proportion of Female Intrusions on Female Middens Remains High Across Sex Ratios and Study Grids",
     x = "Sex Ratio (Females:Males)",
-    y = "Proportion of Intrusions on Female Middens"
-  ) +
+    y = "Proportion of Intrusions on Female Middens") +
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+    axis.text.x = element_text(angle = 45, hjust = 1))
 
 sex_ratios
 
