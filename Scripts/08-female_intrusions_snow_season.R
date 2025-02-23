@@ -25,10 +25,23 @@ season_snow_summary <- female_intrusions %>%
 #save
 write.csv(season_snow_summary, file = "Output/season_snow_summary.csv", row.names = FALSE)
 
+#how many squirrels?
+length(unique(female_intrusions$squirrel_id_trap))
+
+female_intrusions %>%
+  group_by(sex_trap) %>%
+  summarise(unique_squirrels = n_distinct(squirrel_id_trap))
+
+#how many years of data?
+length(unique(female_intrusions$year))
+
+#how many grids?
+length(unique(female_intrusions$grid))
+
 # model -------------------------------------------------------------------
 #relevel 'season' to make the 'other' category the reference level
 female_intrusions$season <- factor(female_intrusions$season)
-female_intrusions$season <- relevel(female_intrusions$season, ref = "other")
+female_intrusions$season <- relevel(female_intrusions$season, ref = "non-breeding")
 
 logistic_model <- glm(trapped_on_male ~ sex_ratio + snow + season,
                       family = binomial(link = "logit"),
@@ -61,7 +74,51 @@ odds_ratio_table <- data.frame(
 #print the table
 print(odds_ratio_table, row.names = FALSE)
 
-# plot --------------------------------------------------------------------
+#generate predictions and plot --------------------------------------------------------------------
+mean_sex_ratio <- mean(female_intrusions$sex_ratio, na.rm = TRUE)
+
+newdata <- expand.grid(
+  season = unique(female_intrusions$season),
+  snow = unique(female_intrusions$snow),
+  sex_ratio = mean_sex_ratio)
+
+preds <- predict(logistic_model, newdata = newdata, type = "response", se.fit = TRUE)
+
+# Store predictions in newdata
+newdata$fit <- preds$fit
+newdata$lower <- preds$fit - 1.96 * preds$se.fit
+newdata$upper <- preds$fit + 1.96 * preds$se.fit
+
+# Ensure CI bounds stay within [0, 1] if desired (optional step)
+newdata$lower <- pmax(0, newdata$lower)
+newdata$upper <- pmin(1, newdata$upper)
+
+#plot predictions
+female_intrusions_snow_season <- ggplot(newdata, aes(x = season, y = fit, fill = snow)) +
+  geom_bar(stat = "identity", 
+           position = position_dodge(width = 0.8), 
+           color = "black") +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = 0.2,
+                position = position_dodge(width = 0.8)) +
+  scale_fill_brewer(palette = "Set3",
+                    labels = c("No snow", "Snow cover")) +
+  scale_x_discrete(limits = c("mating", "lactation", "non-breeding"),
+                   labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
+  labs(
+    title = "Predicted Probability of a Female Being Trapped on a Male Midden",
+    x = "Season",
+    y = "Predicted Probability",
+    fill = "Snow Cover") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+female_intrusions_snow_season
+
+#save
+ggsave("Output/female_intrusions_snow_season.jpeg", plot = female_intrusions_snow_season, width = 8, height = 6)
+
+# plot - raw data --------------------------------------------------------------------
 #proportions
 bar_data <- intruders %>%
   group_by(snow, season) %>%

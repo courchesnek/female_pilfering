@@ -134,9 +134,9 @@ intruders <- intruders %>%
   mutate(
     date_trap = as.Date(date_trap, format = "%Y-%m-%d"),
     season = case_when(
-      date_trap >= breeding_start & date_trap <= breeding_end ~ "breeding",
+      date_trap >= breeding_start & date_trap <= breeding_end ~ "mating",
       date_trap >= lac_start & date_trap <= lac_end ~ "lactation",
-      TRUE ~ "other")) 
+      TRUE ~ "non-breeding")) 
 
 #remove unwanted columns
 intruders <- intruders %>%

@@ -46,26 +46,72 @@ odds_ratio_female = 1 / odds_ratio_male
 prop_male <- mean(female_intrusions$trapped_on_male == 1, na.rm = TRUE)
 prop_female <- 1 - prop_male
 
-#count of observations
-n <- nrow(female_intrusions)
+#how many squirrels?
+length(unique(female_intrusions$squirrel_id_trap))
 
-#number of years in dataset
-num_years <- female_intrusions %>%
-  summarise(unique_years = n_distinct(year))
+female_intrusions %>%
+  group_by(sex_trap) %>%
+  summarise(unique_squirrels = n_distinct(squirrel_id_trap))
 
-# plot sex ratio ----------------------------------------------------------
-#calculate proportions by sex ratio
+#how many years of data?
+length(unique(female_intrusions$year))
+
+#how many grids?
+length(unique(female_intrusions$grid))
+
+#calculate proportions by sex ratio ---------------------------------------
 intrusion_summary <- female_intrusions %>%
-  group_by(year, grid, sex_ratio) %>%  # Group by year, grid, and sex_ratio
+  group_by(year, grid, sex_ratio) %>%  
   summarise(
-    total_intrusions = n(),  # Total number of intrusions
-    trapped_on_female = sum(trapped_on_male == 0, na.rm = TRUE),  # Count of intrusions on female middens
-    trapped_on_male = sum(trapped_on_male == 1, na.rm = TRUE),    # Count of intrusions on male middens
-    prop_female = trapped_on_female / total_intrusions,  # Proportion on female middens
-    prop_male = trapped_on_male / total_intrusions       # Proportion on male middens
-  ) %>%
+    total_intrusions = n(),  
+    trapped_on_female = sum(trapped_on_male == 0, na.rm = TRUE),  
+    trapped_on_male = sum(trapped_on_male == 1, na.rm = TRUE),    
+    prop_female = trapped_on_female / total_intrusions, 
+    prop_male = trapped_on_male / total_intrusions) %>%
   ungroup()
 
+# generate predictions and plot -------------------------------------------
+sex_ratio_seq <- seq(min(female_intrusions$sex_ratio, na.rm = TRUE),
+                     max(female_intrusions$sex_ratio, na.rm = TRUE),
+                     length.out = 100)
+
+newdata <- data.frame(sex_ratio = sex_ratio_seq)
+
+#generate predictions on the response scale (predicted probability) with standard errors
+preds <- predict(model, newdata = newdata, type = "response", se.fit = TRUE)
+
+newdata$fit_female <- 1 - preds$fit
+newdata$lower_female <- 1 - (preds$fit + 1.96 * preds$se.fit)
+newdata$upper_female <- 1 - (preds$fit - 1.96 * preds$se.fit)
+
+#ensure predicted probabilities remain within [0, 1]
+newdata$lower_female <- pmax(0, newdata$lower_female)
+newdata$upper_female <- pmin(1, newdata$upper_female)
+
+#plot predictions
+female_intrusions <- ggplot() +
+  #raw data points: proportion on female middens
+  geom_point(data = intrusion_summary, 
+             aes(x = sex_ratio, y = prop_female, color = grid), alpha = 0.6) +
+  #predicted line: probability of being on female middens
+  geom_line(data = newdata, aes(x = sex_ratio, y = fit_female), color = "black", size = 1) +
+  geom_ribbon(data = newdata, aes(x = sex_ratio, ymin = lower_female, ymax = upper_female),
+              alpha = 0.2, fill = "grey") +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Predicted Probability of Female Intrusions on Female-owned Middens by Sex Ratio",
+    x = "Sex Ratio (F:M)",
+    y = "Probability Trapped on Female Midden",
+    color = "Study grid") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+female_intrusions
+
+#save
+ggsave("Output/female_intrusions.jpeg", plot = female_intrusions, width = 8, height = 6)
+
+# plot - raw data ----------------------------------------------------------
 sex_ratios <- ggplot(intrusion_summary, aes(x = sex_ratio, y = prop_female, color = grid)) +
   geom_point(alpha = 0.6) +
   geom_smooth(method = "loess", se = TRUE, aes(group = 1), color = "black", size = 1) +
