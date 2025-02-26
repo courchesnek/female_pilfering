@@ -90,7 +90,7 @@ female_intrusions <- ggplot(emm_male_df, aes(x = season, y = prob, fill = season
       "non-breeding" = "Non-breeding")) +
   labs(x = "Season",
        y = "Probability",
-       title = "Probability of a Female Being Trapped on a Male Midden Across Seasons") +
+       title = "Probability of a Female Intruding on a Male Midden Across Seasons") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none",
