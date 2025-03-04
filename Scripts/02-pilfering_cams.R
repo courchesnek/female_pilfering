@@ -41,7 +41,8 @@ pilfering <- ggplot(pilfering_long, aes(x = category, y = count, fill = category
     x = NULL,
     y = "Number of Photos") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+  theme(text = element_text(size = 18),
+        axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
 
 pilfering

@@ -92,9 +92,10 @@ female_intrusions <- ggplot(emm_male_df, aes(x = season, y = prob, fill = season
        y = "Probability",
        title = "Probability of a Female Intruding on a Male Midden Across Seasons") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+  theme(text = element_text(size = 18),
+        axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none",
-        plot.title = element_text(hjust = 0.5))
+        plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
 
 female_intrusions
 
