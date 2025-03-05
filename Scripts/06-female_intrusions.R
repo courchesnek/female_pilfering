@@ -6,8 +6,10 @@ intruders <- read.csv("Input/intruders.csv")
 
 #filter data for female intruders and only control grids (non-experimental)
 female_intrusions <- intruders %>%
-  filter(sex_trap == "F",
-         grid %in% c("KL", "SU", "CH"))
+  filter(intruder == 1,
+         sex_trap == "F",
+         grid %in% c("KL", "SU", "CH"),
+         squirrel_id_trap != squirrel_id_owner) #exclude trapped on own midden
 
 #add a binary outcome
 female_intrusions <- female_intrusions %>%
@@ -15,7 +17,6 @@ female_intrusions <- female_intrusions %>%
 
 #data summary
 summary <- female_intrusions %>%
-  filter(intruder == 1) %>%
   summarise(
     total_intrusions = n(),                  
     male_midden_intrusions = sum(trapped_on_male),  
@@ -25,13 +26,10 @@ summary <- female_intrusions %>%
 write.csv(summary, file = "Output/females_summary.csv", row.names = FALSE)
 
 #how many squirrels?
-num_squirrels <- female_intrusions %>%
-  filter(intruder == 1)
-
-length(unique(num_squirrels$squirrel_id_trap))
+length(unique(female_intrusions$squirrel_id_trap))
 
 #logistic regression, and report magnitude ----------------------------------------------------
-model <- glm(trapped_on_male ~ season + sex_ratio,
+model <- glm(trapped_on_male ~ season + F_M,
              family = binomial(link = "logit"),
              data = female_intrusions)
 
@@ -41,7 +39,7 @@ par(mfrow = c(2, 2))
 plot(model)
 
 #odds ratio for magnitude 
-coefficient_sex_ratio <- coef(model)["sex_ratio"]
+coefficient_sex_ratio <- coef(model)["F_M"]
 
 #calculate the odds ratio for being trapped on a male midden
 odds_ratio_male = exp(coefficient_sex_ratio)
@@ -59,48 +57,51 @@ length(unique(female_intrusions$year))
 #how many grids?
 length(unique(female_intrusions$grid))
 
-#calculate proportions by sex ratio ---------------------------------------
-intrusion_summary <- female_intrusions %>%
-  group_by(year, grid, sex_ratio) %>%  
-  summarise(
-    total_intrusions = n(),  
-    trapped_on_female = sum(trapped_on_male == 0, na.rm = TRUE),  
-    trapped_on_male = sum(trapped_on_male == 1, na.rm = TRUE),    
-    prop_female = trapped_on_female / total_intrusions, 
-    prop_male = trapped_on_male / total_intrusions) %>%
-  ungroup()
-
 # generate predictions and plot -------------------------------------------
 emm_male <- emmeans(model, ~ season, 
-                    at = list(sex_ratio = mean(female_intrusions$sex_ratio, na.rm = TRUE)),
+                    at = list(F_M = mean(female_intrusions$F_M, na.rm = TRUE)),
                     type = "response")
 emm_male_df <- as.data.frame(emm_male)
 
-female_intrusions <- ggplot(emm_male_df, aes(x = season, y = prob, fill = season)) +
-  geom_col() +
-  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL), width = 0.2) +
-  scale_fill_brewer(palette = "Set3") +
-  scale_x_discrete(
-    limits = c("mating",
-               "lactation",
-               "non-breeding"),
-    labels = c(
-      "mating" = "Mating",
-      "lactation" = "Lactation",
-      "non-breeding" = "Non-breeding")) +
-  labs(x = "Season",
-       y = "Probability",
-       title = "Probability of a Female Intruding on a Male Midden Across Seasons") +
-  theme_minimal() +
-  theme(text = element_text(size = 18),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none",
-        plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+#total number of intrusions for plot
+sample_sizes <- female_intrusions %>%
+  group_by(season) %>%
+  summarise(total = n(), .groups = "drop")
 
-female_intrusions
+#male and female predictions
+emm_male_df <- merge(emm_male_df, sample_sizes, by = "season")
+predictions_stack <- emm_male_df %>%
+  mutate(prob_female = 1 - prob) %>%
+  pivot_longer(cols = c(prob, prob_female), names_to = "trap_location", values_to = "predicted_proportion") %>%
+  mutate(trap_location = recode(trap_location, "prob" = "Male Midden", "prob_female" = "Female Midden"))
+
+female_intrusions_plot <- ggplot(predictions_stack, aes(x = season, y = predicted_proportion, fill = trap_location)) +
+  geom_col(position = "stack") +
+  geom_text(data = sample_sizes,
+            aes(x = season, y = 1.05, label = total),
+            inherit.aes = FALSE,
+            vjust = 0.4, size = 5) +
+  scale_x_discrete(
+    limits = c("mating", "lactation", "non-breeding"),
+    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
+  scale_y_continuous(labels = percent_format(accuracy = 1), expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1), clip = "off") +
+  scale_fill_manual(values = c("Female Midden" = "#FF3399", "Male Midden" = "#00CCFF")) +
+  labs(x = "Season",
+       y = "Proportion of Intrusions",
+       title = "Female Intrusions Across Seasons",
+       fill = "Trap Location") +
+  theme_minimal(base_size = 18) +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(size = 18, face = "bold", hjust = 0.5, margin = margin(b=30)),
+        plot.margin = margin(t = 20, r = 5, b = 10, l = 15))
+
+female_intrusions_plot
 
 #save
-ggsave(filename = "Output/female_intrusions.jpeg", plot = female_intrusions, width = 10, height = 6)
+ggsave(filename = "Output/female_intrusions.jpeg", plot = female_intrusions_plot, width = 10, height = 6)
 
 # # plot - raw data ----------------------------------------------------------
 # sex_ratios <- ggplot(intrusion_summary, aes(x = sex_ratio, y = prop_female, color = grid)) +

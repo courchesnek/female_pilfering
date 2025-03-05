@@ -5,8 +5,7 @@ source("Scripts/00-packages.R")
 con <- krsp_connect (host = "krsp.cepb5cjvqban.us-east-2.rds.amazonaws.com",
                      dbname ="krsp",
                      username = Sys.getenv("krsp_user"),
-                     password = Sys.getenv("krsp_password")
-)
+                     password = Sys.getenv("krsp_password"))
 
 #pull in trapping records; dbatrapping = 1984-2012 & trapping = 2013-2023
 dbatrapping <- tbl(con,"dbatrapping") %>%
