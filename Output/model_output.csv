@@ -1,0 +1,5 @@
+"term","estimate","std.error","zvalue","pvalue"
+"(Intercept)",-0.7579,0.2472,-3.0661,0.0022
+"seasonlactation",0.6635,0.1181,5.6208,0
+"seasonmating",0.1853,0.0948,1.9559,0.0505
+"F_M",1.3824,0.1564,8.8388,0
