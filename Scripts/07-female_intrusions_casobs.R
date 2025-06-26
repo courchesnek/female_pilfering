@@ -119,8 +119,9 @@ intrusions <- feeding %>%
 female_feeding <- intrusions %>%
   filter(feeder_sex == "F",
          !off_any) %>%
+  filter(on_own | (intruder & midden_owner_sex == "M")) %>%
+  mutate(event_type = if_else(on_own, "own", "male_intrusion")) %>%
   dplyr::select(-off_any)
-
 
 # sex ratios --------------------------------------------------------------
 #F:M per year (spring) per grid
@@ -136,18 +137,18 @@ female_feeding <- female_feeding %>%
 
 # do females pilfer from males during mating? -----------------------------
 # fit a generalized linear mixed effects model with binary response
-##0) make non-breeding the reference category
-mod_data <- mod_data %>%
-  mutate(repro_stage = relevel(factor(repro_stage), ref = "non-breeding"))
-
 ##1) intruder needs to be 1 or 0, and make sure year is a factor
 mod_data <- female_feeding %>%
   mutate(
-    intruder = as.integer(intruder),   # TRUE→1, FALSE→0
+    intrusion = as.integer(event_type == "male_intrusion"),   # TRUE = 1 = male intrusion, FALSE = 0 = own midden
     year     = factor(year)) %>%
-  dplyr::select(grid, year, repro_stage, feeder_sex, feeder_id, midden_owner_sex, midden_owner, intruder, F_M)
+  dplyr::select(grid, year, repro_stage, feeder_sex, feeder_id, midden_owner_sex, midden_owner, intrusion, F_M)
 
-##2) fit the GLMM with random intercepts for squirrel and year
+##2) make non-breeding the reference category
+mod_data <- mod_data %>%
+  mutate(repro_stage = relevel(factor(repro_stage), ref = "non-breeding"))
+
+##3) fit the GLMM with random intercepts for squirrel and year
 # model <- glmer(
 #   intruder ~ F_M + (1 | feeder_id) + (1 | midden_owner) + (1 | year),
 #   data   = mod_data,
@@ -165,24 +166,28 @@ mod_data <- female_feeding %>%
 # 
 # summary(model_2)
 
-#even after accounting for sex‐ratio, the “baseline” chance that a female feeds 
-#on a midden that isn’t her own is extremely small.
-
-#changes in the female∶male ratio have no clear impact on a female’s odds of intruding
-
 #sex ratio is poorly centered relative ot the intercept, which can inflate SEs and mask effects
 mod_data <- mod_data %>%
   mutate(F_Mc = scale(F_M, scale = FALSE))
 
-model_3 <- glmer(
-  intruder ~ F_Mc + repro_stage + (1 | feeder_id) + (1 | midden_owner),
+# feeder_id has zero extra variation and midden_owner perfectly separates intrusions (all 1's on male middens
+#, 0's otherwise. they either add no signal or overfit the data, so let's drop them)
+# model_3 <- glmer(
+#   intrusion ~ F_Mc + repro_stage + (1 | feeder_id) + (1 | midden_owner),
+#   data   = mod_data,
+#   family = binomial(link = "logit"))
+# 
+# summary(model_3)
+
+model_4 <- glm(
+  intrusion ~ F_Mc + repro_stage,
   data   = mod_data,
   family = binomial(link = "logit"))
 
-summary(model_3)
+summary(model_4)
 
 #convert log-odds into probabilities
-coefs <- fixef(model_3)
+coefs <- coef(model_4)
 beta0       <- coefs["(Intercept)"]
 beta_mating <- coefs["repro_stagemating"]
 beta_lac    <- coefs["repro_stagelactation"]
@@ -196,11 +201,84 @@ p_mating      <- plogis(beta0 + beta_mating)
 # intrusion probability during lactation
 p_lactation   <- plogis(beta0 + beta_lac)
 
-probabilities <- data.frame(
+data.frame(
   stage          = c("non-breeding","mating","lactation"),
   probability    = c(p_nonbreeding, p_mating, p_lactation))
- 
-#a female feeding event has a probability on the order of one‐in‐a‐hundred‐million 
-#of being an intrusion.... they don't pilfer. 
-  
-  
+
+#repro stage doesn't matter: females are just as unlikely 
+#to feed on male middens in mating as in non-breeding or lactation 
+
+#therefore there’s no support for the idea that males cache extra cones to 
+#compensate for increased theft during mating season.
+
+
+# generate predictions from model and plot --------------------------------
+#1) build a new data frame at mean sex-ratio (i.e. F_M = 0)
+newdata <- expand.grid(
+  repro_stage = factor(
+    c("non-breeding","mating","lactation"),
+    levels = c("non-breeding","mating","lactation")),
+  F_Mc = 0)
+
+newdata$F_Mc <- scale(newdata$F_Mc, scale = FALSE)
+
+#2) predict intrusion probability from the GLM
+newdata$pred_intrusion <- predict(
+  model_4, 
+  newdata, 
+  type = "response",
+  re.form = NA)
+
+#3) create a data frame to plot
+plot_df <- data.frame(
+  stage  = factor(
+    c("non-breeding","mating","lactation"),
+    levels = c("non-breeding","mating","lactation")),
+  p_male = c(p_nonbreeding, p_mating, p_lactation),
+  p_own  = 1 - c(p_nonbreeding, p_mating, p_lactation))
+
+plot_df <- plot_df %>%
+  tidyr::pivot_longer(
+    cols      = c(p_male, p_own),
+    names_to  = "type",
+    values_to = "prob") %>%
+  mutate(
+    type = recode(type,
+                  p_own  = "Own midden",
+                  p_male = "Male midden"),
+    type = factor(type, levels = c("Male midden","Own midden")))
+
+#4) plot
+ggplot(plot_df, aes(x = stage, y = prob, fill = type)) +
+  geom_col() +
+  scale_x_discrete(
+    limits = c("mating", "lactation", "non-breeding"),
+    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
+  scale_y_continuous(labels = scales::percent_format(1)) +
+  scale_fill_manual(values = c("Male midden" = "#3DB7E9",
+                               "Own midden" = "#F748A5")) +
+  geom_col(position = position_stack(reverse = TRUE)) + 
+  labs(
+    x     = "Reproductive stage",
+    y     = "Predicted proportion of feeding events",
+    fill  = "Feeding location",
+    title = "Proportion of female feeding\non her own vs. male-owned middens") +
+  theme_minimal(base_size = 20) +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
+        panel.grid = element_blank(),
+        axis.text.x = element_text(hjust = 0.5, color = "black"),
+        axis.text.y = element_text(color = "black"),
+        axis.title.x = element_text(margin = margin(t=10)),
+        plot.title = element_text(size = 25, face = "bold", hjust = 0.5, margin = margin(b=20)),
+        plot.margin = margin(t = 20, r = 20, b = 10, l = 20),
+        legend.position = "bottom",
+        legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
+
+
+
+
+
+
+
+
+
