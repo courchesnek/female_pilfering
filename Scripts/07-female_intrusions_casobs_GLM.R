@@ -48,7 +48,7 @@ feeding <- feeding %>%
 # feeding_mating <- feeding_mating %>%
 #   filter(repro_stage == "mating")
 
-#filter for cached (cones and mushrooms) resoures only --------------
+#filter for cached (cones and mushrooms) resources only --------------
 feeding <- feeding %>%
   filter(food_type == "capital")
 
@@ -74,73 +74,83 @@ feeding$locx_feed <- loc_to_numeric(feeding$locx_feed)
 
 census$locx <- loc_to_numeric(census$locx)
 
-#okay now, identify intrusions
-intrusions <- feeding %>%
-  #rename columns in feeding table for clarity
+#fix bad loc entries
+feeding <- feeding %>%
+  mutate(
+    # 1) Turn "(null)" into NA
+    locy_feed = na_if(locy_feed, "(null)"),
+    # 2) Convert commas to dots
+    locy_feed = str_replace(locy_feed, ",", ".")) %>%
+  na.omit()
+
+# prepare census table to join
+census <- census %>%
+  rename(
+    midden_owner = squirrel_id,
+    locx_mid     = locx,
+    locy_mid     = locy,
+    midden_owner_sex = sex) %>%
+  mutate(
+    locx_mid = as.numeric(locx_mid),
+    locy_mid = as.numeric(locy_mid))
+
+#prepare feeding table to join
+feeding <- feeding %>%
   rename(
     feeder_id   = squirrel_id,
     feeder_sex  = sex) %>%
-  #join census middens by grid and year
-  inner_join(
-    census %>%
-      #rename columns in census table for clarity
-      rename(
-        midden_owner = squirrel_id,
-        locx_mid     = locx,
-        locy_mid     = locy,
-        midden_owner_sex  = sex) %>%
-      # make sure these are numeric so we can subtract the distance
-      mutate(
-        locx_mid = as.numeric(locx_mid),
-        locy_mid = as.numeric(locy_mid)),
-    by = c("grid","year"), #by doing this, like years and grids stay grouped; any non-matches (i.e. feeding near a midden that is not in a census) get dropped
-    relationship = "many-to-many") %>%
-  # also make sure these are numeric so we can subtract the distance
   mutate(
-    locx_feed = as.numeric(locx_feed),
-    locy_feed = as.numeric(locy_feed),
-    
-    dx = abs(locx_feed - locx_mid), #distance between feeding loc and midden loc on x-axis
-    dy = abs(locy_feed - locy_mid), #distance between feeding loc and midden loc on y-axis
-    
-    on_own   = (feeder_id == midden_owner) & (dx <= 0.3 & dy <= 0.3), #on own = TRUE if within 0.3 loc units (~9m) of a midden she owns
-    intruder = (feeder_id != midden_owner) & (dx <= 0.3 & dy <= 0.3), #intruder = TRUE if within 0.3 loc units (~9m) of a different squirrel's midden = intrusion
-    off_any  = (!on_own & !intruder)) %>% #feeding not on any known midden (neither her own nor another’s)
-    dplyr::select(
-    grid, year, repro_stage,
-    feeder_id, feeder_sex,
-    locx_feed, locy_feed,
-    midden_owner, midden_owner_sex,
-    locx_mid,   locy_mid,
-    dx, dy,
-    on_own, intruder, off_any)
+    locx_feed = as.numeric(locx_feed))
 
-#filter for female feeding events on midden only (her own or intruding)
+# join feeding to census table
+feeding_census <- feeding %>%
+  inner_join(census, by = c("grid", "year"), relationship = "many-to-many") %>%
+  mutate(
+    # euclidean distance from feeding event to each midden
+    dx   = as.numeric(locx_feed) - as.numeric(locx_mid),
+    dy   = as.numeric(locy_feed) - as.numeric(locy_mid),
+    dist = sqrt(dx^2 + dy^2))
+
+# for each feeding event, keep only the *closest* midden
+feeding_nearest <- feeding_census %>%
+  group_by(grid, year, feeder_id, locx_feed, locy_feed) %>%
+  slice_min(order_by = dist, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# classify whether it was on own midden, an intrusion, or or off any
+intrusions <- feeding_nearest %>%
+  mutate(
+    on_own   = (feeder_id == midden_owner) & (dist <= 10/30),
+    intruder = (feeder_id != midden_owner) & (dist <= 10/30),
+    off_any  = !on_own & !intruder)
+
+# female feeding 
 female_feeding <- intrusions %>%
-  filter(feeder_sex == "F",
-         !off_any) %>%
-  filter(on_own | (intruder & midden_owner_sex == "M")) %>%
-  mutate(event_type = if_else(on_own, "own", "male_intrusion")) %>%
-  dplyr::select(-off_any)
+  filter(feeder_sex == "F")
+
+#filter for female feeding events on midden only
+female_intrusions <- intrusions %>%
+  filter(feeder_sex == "F", intruder == TRUE) %>%
+  mutate(event_type = if_else(midden_owner_sex == "M", "male", "female"))
 
 # sex ratios --------------------------------------------------------------
 #F:M per year (spring) per grid
 sex_ratio <- census %>%
-  group_by(year, grid, sex) %>%
-  summarise(count = n_distinct(squirrel_id), .groups = "drop") %>% #only count each individual squirrel once, so don't double count if a squirrel owns multiple middens in a given year
-  pivot_wider(names_from = sex, values_from = count, values_fill = list(count = 0)) %>%
+  group_by(year, grid, midden_owner_sex) %>%
+  summarise(count = n_distinct(midden_owner), .groups = "drop") %>% #only count each individual squirrel once, so don't double count if a squirrel owns multiple middens in a given year
+  pivot_wider(names_from = midden_owner_sex, values_from = count, values_fill = list(count = 0)) %>%
   mutate(F_M = round(F / M, 3))
 
 #join this with the female feeding table - keep only matches
-female_feeding <- female_feeding %>%
+female_intrusions <- female_intrusions %>%
   inner_join(sex_ratio, by = c("year", "grid"))
 
 # do females pilfer from males during mating? -----------------------------
 # fit a generalized linear mixed effects model with binary response
 ##1) intruder needs to be 1 or 0, and make sure year is a factor
-mod_data <- female_feeding %>%
+mod_data <- female_intrusions %>%
   mutate(
-    intrusion = as.integer(event_type == "male_intrusion"),   # TRUE = 1 = male intrusion, FALSE = 0 = own midden
+    intrusion = as.integer(event_type == "male"),   # 1 = male intrusion, 0 = female midden
     year     = factor(year)) %>%
   dplyr::select(grid, year, repro_stage, feeder_sex, feeder_id, midden_owner_sex, midden_owner, intrusion, F_M)
 
@@ -168,7 +178,7 @@ mod_data <- mod_data %>%
 
 #sex ratio is poorly centered relative ot the intercept, which can inflate SEs and mask effects
 mod_data <- mod_data %>%
-  mutate(F_Mc = scale(F_M, scale = FALSE))
+  mutate(F_Mc = as.numeric(scale(F_M, scale = FALSE)))
 
 # feeder_id has zero extra variation and midden_owner perfectly separates intrusions (all 1's on male middens
 #, 0's otherwise. they either add no signal or overfit the data, so let's drop them)
@@ -179,6 +189,7 @@ mod_data <- mod_data %>%
 # 
 # summary(model_3)
 
+##3.0) fit the GLM with fixed effects only
 model_4 <- glm(
   intrusion ~ F_Mc + repro_stage,
   data   = mod_data,
@@ -211,7 +222,6 @@ data.frame(
 #therefore there’s no support for the idea that males cache extra cones to 
 #compensate for increased theft during mating season.
 
-
 # generate predictions from model and plot --------------------------------
 #1) build a new data frame at mean sex-ratio (i.e. F_M = 0)
 newdata <- expand.grid(
@@ -220,49 +230,47 @@ newdata <- expand.grid(
     levels = c("non-breeding","mating","lactation")),
   F_Mc = 0)
 
-newdata$F_Mc <- scale(newdata$F_Mc, scale = FALSE)
+newdata$F_Mc <- as.numeric(newdata$F_Mc)
 
 #2) predict intrusion probability from the GLM
 newdata$pred_intrusion <- predict(
   model_4, 
-  newdata, 
-  type = "response",
-  re.form = NA)
+  newdata = newdata, 
+  type = "response")
 
 #3) create a data frame to plot
 plot_df <- data.frame(
   stage  = factor(
     c("non-breeding","mating","lactation"),
     levels = c("non-breeding","mating","lactation")),
-  p_male = c(p_nonbreeding, p_mating, p_lactation),
-  p_own  = 1 - c(p_nonbreeding, p_mating, p_lactation))
+  male_midden     = c(p_nonbreeding, p_mating, p_lactation),
+  female_midden   = 1 - c(p_nonbreeding, p_mating, p_lactation))
 
 plot_df <- plot_df %>%
-  tidyr::pivot_longer(
-    cols      = c(p_male, p_own),
-    names_to  = "type",
+  pivot_longer(
+    cols = c(male_midden, female_midden),
+    names_to = "type",
     values_to = "prob") %>%
   mutate(
     type = recode(type,
-                  p_own  = "Own midden",
-                  p_male = "Male midden"),
-    type = factor(type, levels = c("Male midden","Own midden")))
+                  male_midden   = "Male midden",
+                  female_midden = "Female midden"),
+    type = factor(type, levels = c("Male midden", "Female midden")))
 
 #4) plot
 ggplot(plot_df, aes(x = stage, y = prob, fill = type)) +
-  geom_col() +
+  geom_col(position = position_stack(reverse = TRUE)) +
   scale_x_discrete(
     limits = c("mating", "lactation", "non-breeding"),
     labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
   scale_y_continuous(labels = scales::percent_format(1)) +
   scale_fill_manual(values = c("Male midden" = "#3DB7E9",
-                               "Own midden" = "#F748A5")) +
-  geom_col(position = position_stack(reverse = TRUE)) + 
+                               "Female midden" = "#F748A5")) + 
   labs(
     x     = "Reproductive stage",
     y     = "Predicted proportion of feeding events",
     fill  = "Feeding location",
-    title = "Proportion of female feeding\non her own vs. male-owned middens") +
+    title = "Proportion of female feeding\non male- vs female-owned middens") +
   theme_minimal(base_size = 20) +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
         panel.grid = element_blank(),
@@ -273,12 +281,3 @@ ggplot(plot_df, aes(x = stage, y = prob, fill = type)) +
         plot.margin = margin(t = 20, r = 20, b = 10, l = 20),
         legend.position = "bottom",
         legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
-
-
-
-
-
-
-
-
-
