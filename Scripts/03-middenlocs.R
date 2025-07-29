@@ -27,16 +27,18 @@ census <- census %>%
   mutate(census_date = as.Date(census_date))
 
 census_spring <- census %>%
+  mutate(year = year(census_date)) %>%
   filter(format(census_date, "%m-%d") == "05-15",
-         gr %in% c("KL", "SU", "CH")) %>%
+         gr %in% c("KL", "SU", "CH", "JO", "BT")  | (gr == "JO" & year >= 2013)) %>%
   dplyr::select(census_date, gr, squirrel_id, locx, locy, reflo)
 
 census_middens <- census_middens %>%
   mutate(date = as.Date(date))
 
 census_middens_spring <- census_middens %>%
+  mutate(year = year(date)) %>%
   filter(format(date, "%m-%d") == "05-15",
-         grid %in% c("KL", "SU", "CH")) %>%
+         grid %in% c("KL", "SU", "CH", "JO", "BT")  | (grid == "JO" & year >= 2013)) %>%
   dplyr::select(date, grid, squirrel_id, locX, locY, reflo)
 
 #remove rows where squirrel_id = NA - can't do anything with those
@@ -78,6 +80,25 @@ census_spring <- census_spring %>%
     is.na(reflo) & locx == "-1.0" & locy == "10.0" ~ "-110",
     is.na(reflo) & locx == "-1.0" & locy == "4.0" ~ "-14",
     is.na(reflo) & locx == "-1.0" & locy == "1.0" ~ "-11",
+    is.na(reflo) & locx == "M.1" & locy == "1.8" ~ "M1.",
+    is.na(reflo) & locx == "L.3" & locy == "5.7" ~ "L.3.",
+    is.na(reflo) & locx == "C.0" & locy == "2.5" ~ "C2.",
+    is.na(reflo) & locx == "K.5" & locy == "7.5" ~ "K.7.",
+    is.na(reflo) & locx == "G.5" & locy == "1.0" ~ "G.1",
+    is.na(reflo) & locx == "9.0" & locy == "3.0" ~ "I3",
+    is.na(reflo) & locx == "8.0" & locy == "10.0" ~ "H10",
+    is.na(reflo) & locx == "7.5" & locy == "10.9" ~ "G.11",
+    is.na(reflo) & locx == "5.0" & locy == "15.0" ~ "E15",
+    is.na(reflo) & locx == "19.0" & locy == "7.0" ~ "S7",
+    is.na(reflo) & locx == "16.0" & locy == "10.0" ~ "P10",
+    is.na(reflo) & locx == "16.0" & locy == "20.0" ~ "P20",
+    is.na(reflo) & locx == "13.0" & locy == "11.0" ~ "M11",
+    is.na(reflo) & locx == "13.0" & locy == "19.0" ~ "M19",
+    is.na(reflo) & locx == "12.0" & locy == "5.0" ~ "L5",
+    is.na(reflo) & locx == "10.5" & locy == "15.5" ~ "J.15.",
+    is.na(reflo) & locx == "1.0" & locy == "2.0" ~ "A2",
+    is.na(reflo) & locx == "0.0" & locy == "1.0" ~ "01",
+    is.na(reflo) & locx == "0.0" & locy == "0.0" ~ "00",
     TRUE ~ reflo)) #keep existing reflo if none of the above conditions are met
 
 #1987-2011
@@ -85,14 +106,41 @@ census_middens_spring_missing_reflo <- census_middens_spring %>%
   filter(is.na(reflo)) #no missing reflos!
 
 # fix weird/missing locs/reflos -------------------------------------------
-#missing reflos
+#missing reflos 2012-present
 census_spring$reflo[census_spring$locx == "A.0" & census_spring$locy == 5.5 &
                        (is.na(census_spring$reflo) | census_spring$reflo == "")] <- "A5."
+census_spring$reflo[census_spring$locx == "K.5" & census_spring$locy == "8.0" &
+                      (is.na(census_spring$reflo) | census_spring$reflo == "")] <- "K.8"
+census_spring$reflo[census_spring$locx == "K.0" & census_spring$locy == 2.5 &
+                      (is.na(census_spring$reflo) | census_spring$reflo == "")] <- "K2."
+census_spring$reflo[census_spring$locx == "K.5" & census_spring$locy == "7.0" &
+                      (is.na(census_spring$reflo) | census_spring$reflo == "")] <- "K.7"
+census_spring$reflo[census_spring$locx == "0.0" & census_spring$locy == 1.5 &
+                      (is.na(census_spring$reflo) | census_spring$reflo == "")] <- "01."
+census_spring$reflo[census_spring$locx == "A.0" & census_spring$locy == 4.5 &
+                      (is.na(census_spring$reflo) | census_spring$reflo == "")] <- "A4."
 
-#weird reflos
+#weird reflos 2012-present
 census_spring$reflo[census_spring$locx == "-0.4" & census_spring$locy == "13.6"] <- "-0.13."
 census_spring$reflo[census_spring$locx == "-0.5" & census_spring$locy == "5.5"] <- "-0.5."
 census_spring$reflo[census_spring$locx == "-1.2" & census_spring$locy == "14.5"] <- "-114."
+census_spring$reflo[census_spring$locx == "-0.5" & census_spring$locy == "3.0"] <- "-0.3"
+census_spring$reflo[census_spring$locx == "-0.8" & census_spring$locy == "2.8"] <- "-0.2."
+census_spring$reflo[census_spring$locx == "-7.5" & census_spring$locy == "6.0"] <- "-7.6"
+census_spring$reflo[census_spring$locx == "-1.2" & census_spring$locy == "14.5"] <- "-114."
+
+census_spring$locx[census_spring$squirrel_id == 11945 & census_spring$reflo == "O5"] <- "O.0"
+census_spring$locy[census_spring$squirrel_id == 11945 & census_spring$reflo == "O5"] <- "5.0"
+
+#missing reflos 1987-2011
+census_middens_spring$reflo[census_middens_spring$locX == "13.0" & census_middens_spring$locY == 9.5 &
+                      (is.na(census_middens_spring$reflo) | census_middens_spring$reflo == "")] <- "M9."
+census_middens_spring$reflo[census_middens_spring$locX == "7.5" & census_middens_spring$locY == 2.5 &
+                              (is.na(census_middens_spring$reflo) | census_middens_spring$reflo == "")] <- "G.2."
+census_middens_spring$reflo[census_middens_spring$locX == "1.5" & census_middens_spring$locY == 9.3 &
+                              (is.na(census_middens_spring$reflo) | census_middens_spring$reflo == "")] <- "A.9"
+census_middens_spring$reflo[census_middens_spring$locX == "7.3" & census_middens_spring$locY == 10.9 &
+                              (is.na(census_middens_spring$reflo) | census_middens_spring$reflo == "")] <- "G.11"
 
 # create new locx/locy columns 2012-present --------------------------------------------
 #split into subtables

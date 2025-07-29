@@ -176,6 +176,29 @@ multi_model <- multinom(
 
 summary(multi_model)
 
+# save model summary table
+model_summary <- tidy(multi_model) %>%
+  mutate(
+    term = if_else(term == "(Intercept)", "Non-breeding", term)) %>%
+  rename(
+    Midden_type    = y.level,    # feeding_type level
+    Term      = term,       # predictor
+    Estimate  = estimate,   # β
+    SE        = std.error,  # standard error
+    Z         = statistic,  # z‐value
+    P_value   = p.value) %>%     # p‐value
+  mutate(
+    Estimate = round(Estimate, 4),
+    SE       = round(SE,       4),
+    Z        = round(Z,        4),
+    P_value  = round(P_value,  4)) %>%
+  # 3. Reorder columns
+  dplyr::select(Midden_type, Term, Estimate, SE, Z, P_value)
+
+#save as csv
+write.csv(model_summary, "Output/MULTINOM_model_summary.csv", row.names = FALSE)
+
+
 # generate predictions from model and plot --------------------------------
 ##1) build prediction dataset at mean sex-ratio
 newdata <- expand.grid(
@@ -248,6 +271,10 @@ mod_data %>%
 mod_data %>%
   filter(feeding_type == "female") %>%
   summarise(count = n())
+
+
+length(unique(mod_data$feeder_id))
+length(unique(mod_data$year))
 
 
 

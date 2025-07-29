@@ -4,11 +4,11 @@ source("Scripts/00-packages.R")
 #load in data
 intruders <- read.csv("Input/intruders.csv")
 
-#filter data for female intruders and only control grids (non-experimental)
+#filter data for female intruders
 female_intrusions <- intruders %>%
   filter(intruder == 1,
          sex_trap == "F",
-         grid %in% c("KL", "SU", "CH"),
+         (grid %in% c("KL", "SU", "CH", "JO", "BT")) & !(grid == "JO" & year < 2013),
          squirrel_id_trap != squirrel_id_owner) #exclude trapped on own midden
 
 #add a binary outcome
@@ -27,6 +27,9 @@ write.csv(summary, file = "Output/females_summary.csv", row.names = FALSE)
 
 #how many squirrels?
 length(unique(female_intrusions$squirrel_id_trap))
+
+#how many years of data?
+length(unique(female_intrusions$year))
 
 # model ----------------------------------------------------
 #make non-breeding the reference category
@@ -114,7 +117,8 @@ female_intrusions_plot <- ggplot(predictions_stack, aes(x = season, y = predicte
     labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
   scale_y_continuous(labels = percent_format(accuracy = 1), expand = c(0, 0)) +
   coord_cartesian(ylim = c(0, 1), clip = "off") +
-  scale_fill_manual(values = c("Female Midden" = "#F748A5", "Male Midden" = "#3DB7E9")) +
+  scale_fill_manual(values = c("Female Midden" = "#F748A5", "Male Midden" = "#3DB7E9"),
+                    breaks = c("Male Midden", "Female Midden")) +
   labs(x = "Season",
        y = "Proportion of Intrusions",
        title = "Female Intrusions Across Seasons",
