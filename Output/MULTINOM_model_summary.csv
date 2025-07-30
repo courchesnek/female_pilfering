@@ -1,9 +1,9 @@
 "Midden_type","Term","Estimate","SE","Z","P_value"
-"male","Non-breeding",-2.2289,0.4366,-5.1054,0
-"male","F_Mc",0.4166,0.2496,1.6695,0.095
-"male","repro_stagelactation",0.1406,0.4483,0.3136,0.7538
-"male","repro_stagemating",0.3536,0.4491,0.7873,0.4311
-"female","Non-breeding",-1.5355,0.3351,-4.5822,0
-"female","F_Mc",0.0099,0.2426,0.0406,0.9676
-"female","repro_stagelactation",-0.0604,0.3459,-0.1746,0.8614
-"female","repro_stagemating",-0.7537,0.3611,-2.0871,0.0369
+"male","Non-breeding",-2.0006,0.3587,-5.5768,0
+"male","F_Mc",0.2183,0.2249,0.9709,0.3316
+"male","repro_stagelactation",0.0388,0.369,0.105,0.9164
+"male","repro_stagemating",0.1483,0.3724,0.3983,0.6904
+"female","Non-breeding",-1.3591,0.2813,-4.8316,0
+"female","F_Mc",-0.1873,0.2231,-0.8392,0.4013
+"female","repro_stagelactation",-0.2891,0.2919,-0.9905,0.3219
+"female","repro_stagemating",-0.7816,0.3048,-2.5643,0.0103

@@ -120,8 +120,8 @@ feeding_nearest <- feeding_census %>%
 # classify whether it was on own midden, an intrusion, or or off any
 intrusions <- feeding_nearest %>%
   mutate(
-    on_own   = (feeder_id == midden_owner) & (dist <= 10/30),
-    intruder = (feeder_id != midden_owner) & (dist <= 10/30),
+    on_own   = (feeder_id == midden_owner) & (dist <= 13/30), #10m midden "island" radius +/- 3m error
+    intruder = (feeder_id != midden_owner) & (dist <= 13/30), #10m midden "island" radius +/- 3m error
     off_any  = !on_own & !intruder)
 
 # female feeding with feeding type classification
