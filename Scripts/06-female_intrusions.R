@@ -107,29 +107,30 @@ predictions_stack <- emm_male_df %>%
                                 "prob_male" = "Male Midden"))
 
 female_intrusions_plot <- ggplot(predictions_stack, aes(x = season, y = predicted_proportion, fill = trap_location)) +
-  geom_col(position = "stack") +
+  geom_col(width = 0.96) +
   geom_text(data = sample_sizes,
-            aes(x = season, y = 1.05, label = total),
+            aes(x = season, y = 1.05, label = paste0("n = ", total)),
             inherit.aes = FALSE,
             vjust = 0.4, size = 10) +
   scale_x_discrete(
     limits = c("mating", "lactation", "non-breeding"),
-    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
+    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
+    expand = c(0, 0)) +
   scale_y_continuous(labels = percent_format(accuracy = 1), expand = c(0, 0)) +
   coord_cartesian(ylim = c(0, 1), clip = "off") +
-  scale_fill_manual(values = c("Female Midden" = "#F748A5", "Male Midden" = "#3DB7E9"),
+  scale_fill_manual(values = c("Female Midden" = "#CC6677", "Male Midden" = "#88CCEE"),
                     breaks = c("Male Midden", "Female Midden")) +
-  labs(x = "Season",
-       y = "Proportion of Intrusions",
-       title = "Female Intrusions Across Seasons",
-       fill = "Trap Location") +
-  theme_minimal(base_size = 25) +
+  labs(x = "Reproductive Stage",
+       y = "Proportion of Total Intrusion Events",
+       title = "Female Intrusion Events Across Reproductive Stages\n(Trapping Events)",
+       fill = "Intrusion Location") +
+  theme_minimal(base_size = 22) +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
         panel.grid = element_blank(),
         axis.text.x = element_text(hjust = 0.5, color = "black"),
         axis.text.y = element_text(color = "black"),
         axis.title.x = element_text(margin = margin(t=10)),
-        plot.title = element_text(size = 30, face = "bold", hjust = 0.5, margin = margin(b=50)),
+        plot.title = element_text(size = 24, face = "bold", hjust = 0.5, margin = margin(b=50)),
         plot.margin = margin(t = 20, r = 20, b = 10, l = 20),
         legend.position = "bottom",
         legend.box.margin = margin(t = -30, r = 0, b = 0, l = 0))

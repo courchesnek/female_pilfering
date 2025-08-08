@@ -198,7 +198,6 @@ model_summary <- tidy(multi_model) %>%
 #save as csv
 write.csv(model_summary, "Output/MULTINOM_model_summary.csv", row.names = FALSE)
 
-
 # generate predictions from model and plot --------------------------------
 ##1) build prediction dataset at mean sex-ratio
 newdata <- expand.grid(
@@ -224,28 +223,39 @@ plot_long <- plot_df %>%
                           own_midden    = "Own midden"),
     feeding_type = factor(feeding_type, levels = c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")))
 
+#total number of feeding events per season
+sample_sizes <- female_feeding %>%
+  group_by(repro_stage) %>%
+  summarise(total = n(), .groups = "drop")
+
 ##5) plot
 female_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fill = feeding_type)) +
-  geom_col(position = position_stack(reverse = TRUE)) +
+  geom_col(position = position_stack(reverse = TRUE), width = 0.96) +
+  geom_text(data = sample_sizes,
+            aes(x = repro_stage, y = 1.05, label = paste0("n = ", total)),
+            inherit.aes = FALSE,
+            vjust = 0.4, size = 9) +
   scale_x_discrete(
     limits = c("mating", "lactation", "non-breeding"),
-    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding")) +
-  scale_y_continuous(labels = scales::percent_format(1)) +
-  scale_fill_manual(values = c("Male midden (intrusion)" = "#3DB7E9",
-                               "Female midden (intrusion)" = "#F748A5",
-                               "Own midden" = "#00BA38")) +
+    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
+    expand = c(0, 0)) +
+  scale_y_continuous(labels = scales::percent_format(1), expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1), clip = "off") +
+  scale_fill_manual(values = c("Male midden (intrusion)" = "#88CCEE",
+                               "Female midden (intrusion)" = "#CC6677",
+                               "Own midden" = "#44AA99")) +
   labs(
-    x     = "Reproductive stage",
-    y     = "Predicted proportion of feeding events",
-    fill  = "Feeding location",
-    title = "Proportion of female feeding events\nby midden type") +
-  theme_minimal(base_size = 20) +
+    x     = "Reproductive Stage",
+    y     = "Proportion of Total Feeding Events",
+    fill  = "Feeding Location",
+    title = "Female Feeding Events Across Reproductive Stages\n(Behavioural Observations)") +
+  theme_minimal(base_size = 22) +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
         panel.grid = element_blank(),
         axis.text.x = element_text(hjust = 0.5, color = "black"),
         axis.text.y = element_text(color = "black"),
         axis.title.x = element_text(margin = margin(t = 10)),
-        plot.title = element_text(size = 25, face = "bold", hjust = 0.5, margin = margin(b = 20)),
+        plot.title = element_text(size = 24, face = "bold", hjust = 0.5, margin = margin(b = 40)),
         plot.margin = margin(t = 20, r = 20, b = 10, l = 20),
         legend.position = "bottom",
         legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
