@@ -18,7 +18,7 @@ litters$fieldBDate <- as.Date(litters$fieldBDate)
 
 #calculate breeding windows; -35 days from earliest fieldBDate = start and -35 days from latest = end
 mating_lac <- litters %>%
-  filter(year(fieldBDate) >= 1987 & year(fieldBDate) <= 2023, ln == 1) %>%
+  filter(year(fieldBDate) >= 1987 & year(fieldBDate) <= 2024, ln == 1) %>%
   mutate(year = year(fieldBDate), grid = grid) %>%
   group_by(year, grid) %>%
   summarise(
@@ -127,23 +127,6 @@ intruders <- intruders %>%
 intruders <- intruders %>%
   left_join(mating_lac_ratio %>% dplyr::select(year, grid, F_M), by = c("year", "grid")) %>%
   na.omit()
-
-# add snow column ---------------------------------------------------------
-# intruders <- intruders %>%
-#   mutate(
-#     snow = case_when(
-#       #snow period: October 15 to May 14
-#       (month(date_trap) %in% c(11, 12, 1, 2, 3, 4) | 
-#          (month(date_trap) == 10 & day(date_trap) >= 15) | 
-#          (month(date_trap) == 5 & day(date_trap) <= 14)) ~ "snow",
-#       
-#       #no-snow period: May 15 to October 14
-#       (month(date_trap) %in% c(6, 7, 8, 9) | 
-#          (month(date_trap) == 10 & day(date_trap) <= 14) | 
-#          (month(date_trap) == 5 & day(date_trap) >= 15)) ~ "no snow",
-#       
-#       #default: this should never trigger if the above cases are correct
-#       TRUE ~ "error"))
 
 #save
 write.csv(intruders, "Input/intruders.csv", row.names = FALSE)

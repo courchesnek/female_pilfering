@@ -7,13 +7,12 @@ con <- krsp_connect (host = "krsp.cepb5cjvqban.us-east-2.rds.amazonaws.com",
                      username = Sys.getenv("krsp_user"),
                      password = Sys.getenv("krsp_password"))
 
-#pull in trapping records; dbatrapping = 1984-2012 & trapping = 2013-2023
+#pull in trapping records; dbatrapping = 1984-2012 & trapping = 2013-2024
 dbatrapping <- tbl(con,"dbatrapping") %>%
   collect()
 
 trapping <- tbl(con,"trapping") %>%
   collect()
-
 
 # fix dbatrapping ---------------------------------------------------------
 #remove unnecessary columns and NAs
@@ -105,12 +104,3 @@ alltrapping <- bind_rows(dbatrapping_fixed, trapping_fixed) %>%
 
 #save
 write.csv(alltrapping, file = "Input/alltrapping.csv", row.names = FALSE)
-
-
-
-
-
-
-
-
-

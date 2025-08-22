@@ -1,18 +1,16 @@
-#load packages -----
+#load packages
 source("Scripts/00-packages.R")
 
-#connection to KRSP database --------
+#connection to KRSP database
 con <- krsp_connect (host = "krsp.cepb5cjvqban.us-east-2.rds.amazonaws.com",
                      dbname ="krsp",
                      username = Sys.getenv("krsp_user"),
                      password = Sys.getenv("krsp_password"))
 
-
-# pull in data tables -----------------------------------------------------
-##*pull in feeding obs + census exact locs ----
+#pull in feeding obs + census exact locs
 feeding <- read.csv("Input/all_feeding_census_exact_locs.csv")
 
-##*pull in census data ----
+#pull in census data
 census <- read.csv("Input/squirrel_census_exact_locs.csv")
 
 #numeric locx to alphabet ----------------------------------
@@ -46,11 +44,11 @@ numeric_to_locx_vec <- Vectorize(numeric_to_locx)
 feeding <- feeding %>%
   mutate(locx_feed = numeric_to_locx_vec(locx_feed))
 
-#filter for cached cones only --------------
+#filter for cached cones resources --------------
 feeding <- feeding %>%
   filter(food_type == "capital", detail == 2)
 
-#identify female intrusions ----------------------------------------------
+#identify male intrusions ----------------------------------------------
 ##*first, add sex to census table and filter for May census ----
 squirrel_sex <- tbl(con,"flastall") %>%
   collect() %>%
@@ -122,9 +120,9 @@ intrusions <- feeding_nearest %>%
     intruder = (feeder_id != midden_owner) & (dist <= 13/30), #10m midden "island" radius +/- 3m error
     off_any  = !on_own & !intruder)
 
-##*female feeding with feeding type classification ----
-female_feeding <- intrusions %>%
-  filter(feeder_sex == "F") %>%
+##*male feeding with feeding type classification ----
+male_feeding <- intrusions %>%
+  filter(feeder_sex == "M") %>%
   filter(on_own | intruder) %>%  # only keep midden-based events
   mutate(
     feeding_type = case_when(
@@ -143,13 +141,13 @@ sex_ratio <- census %>%
   mutate(F_M = round(F / M, 3))
 
 ##*join this with the female feeding table - keep only matches----
-female_feeding <- female_feeding %>%
+male_feeding <- male_feeding %>%
   inner_join(sex_ratio, by = c("year", "grid"))
 
-# do females pilfer from males during mating? -----------------------------
+# do males pilfer from other squirrels during mating? -----------------------------
 ##*fit a generalized linear mixed effects model with binary response ----
 ###1) intruder needs to be 1 or 0, and make sure year is a factor ----
-mod_data <- female_feeding %>%
+mod_data <- male_feeding %>%
   mutate(
     feeding_type = factor(feeding_type, levels = c("own_midden", "male", "female")),
     year = factor(year),
@@ -194,7 +192,7 @@ model_summary <- tidy(multi_model) %>%
   dplyr::select(Midden_type, Term, Estimate, SE, Z, P_value)
 
 #save as csv
-write.csv(model_summary, "Output/MULTINOM_model_summary.csv", row.names = FALSE)
+write.csv(model_summary, "Output/MULTINOM_model_summary_MALES.csv", row.names = FALSE)
 
 # generate predictions from model and plot --------------------------------
 ###1) build prediction dataset at mean sex-ratio ----
@@ -222,12 +220,12 @@ plot_long <- plot_df %>%
     feeding_type = factor(feeding_type, levels = c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")))
 
 #total number of feeding events per season
-sample_sizes <- female_feeding %>%
+sample_sizes <- male_feeding %>%
   group_by(repro_stage) %>%
   summarise(total = n(), .groups = "drop")
 
 ###5) plot ----
-female_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fill = feeding_type)) +
+male_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fill = feeding_type)) +
   geom_col(position = position_stack(reverse = TRUE), width = 0.96) +
   geom_text(data = sample_sizes,
             aes(x = repro_stage, y = 1.05, label = paste0("n = ", total)),
@@ -246,7 +244,7 @@ female_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fil
     x     = "Reproductive Stage",
     y     = "Proportion of Total Feeding Events",
     fill  = "Feeding Location",
-    title = "Female Feeding Events Across Reproductive Stages\n(Behavioural Observations)") +
+    title = "Male Feeding Events Across Reproductive Stages\n(Behavioural Observations)") +
   theme_minimal(base_size = 22) +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
         panel.grid = element_blank(),
@@ -258,10 +256,10 @@ female_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fil
         legend.position = "bottom",
         legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
 
-female_intrusions_casobs
+male_intrusions_casobs
 
 #save plot
-ggsave(filename = "Output/female_intrusions_casobs.jpeg", plot = female_intrusions_casobs, width = 12, height = 7)
+ggsave(filename = "Output/male_intrusions_casobs.jpeg", plot = male_intrusions_casobs, width = 12, height = 7)
 
 
 # breakdown of intrusions -------------------------------------------------
@@ -302,3 +300,6 @@ mod_data %>%
 
 length(unique(mod_data$feeder_id))
 length(unique(mod_data$year))
+
+
+

@@ -1,0 +1,9 @@
+"Midden_type","Term","Estimate","SE","Z","P_value"
+"male","Non-breeding",-2.3766,0.3763,-6.315,0
+"male","F_Mc",-1.2442,0.4012,-3.1013,0.0019
+"male","repro_stagelactation",0.0418,0.408,0.1025,0.9184
+"male","repro_stagemating",-0.3952,0.4137,-0.9553,0.3394
+"female","Non-breeding",-1.8882,0.2857,-6.6089,0
+"female","F_Mc",-0.3713,0.2647,-1.403,0.1606
+"female","repro_stagelactation",-0.0422,0.3157,-0.1337,0.8937
+"female","repro_stagemating",0.367,0.3019,1.2156,0.2241

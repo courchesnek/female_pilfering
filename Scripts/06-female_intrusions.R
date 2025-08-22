@@ -8,7 +8,7 @@ intruders <- read.csv("Input/intruders.csv")
 female_intrusions <- intruders %>%
   filter(intruder == 1,
          sex_trap == "F",
-         (grid %in% c("KL", "SU", "CH", "JO", "BT")) & !(grid == "JO" & year < 2013),
+         (grid %in% c("KL", "SU", "CH")),
          squirrel_id_trap != squirrel_id_owner) #exclude trapped on own midden
 
 #add a binary outcome

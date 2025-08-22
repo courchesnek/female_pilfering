@@ -29,7 +29,7 @@ census <- census %>%
 census_spring <- census %>%
   mutate(year = year(census_date)) %>%
   filter(format(census_date, "%m-%d") == "05-15",
-         gr %in% c("KL", "SU", "CH", "JO", "BT")  | (gr == "JO" & year >= 2013)) %>%
+         gr %in% c("KL", "SU", "CH")) %>%
   dplyr::select(census_date, gr, squirrel_id, locx, locy, reflo)
 
 census_middens <- census_middens %>%
@@ -38,7 +38,7 @@ census_middens <- census_middens %>%
 census_middens_spring <- census_middens %>%
   mutate(year = year(date)) %>%
   filter(format(date, "%m-%d") == "05-15",
-         grid %in% c("KL", "SU", "CH", "JO", "BT")  | (grid == "JO" & year >= 2013)) %>%
+         grid %in% c("KL", "SU", "CH")) %>%
   dplyr::select(date, grid, squirrel_id, locX, locY, reflo)
 
 #remove rows where squirrel_id = NA - can't do anything with those
