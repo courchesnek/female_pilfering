@@ -122,7 +122,6 @@ female_intrusions_plot <- ggplot(predictions_stack, aes(x = season, y = predicte
                     breaks = c("Male Midden", "Female Midden")) +
   labs(x = "Reproductive Stage",
        y = "Proportion of Total Intrusion Events",
-       title = "Female Intrusion Events Across Reproductive Stages\n(Trapping Events)",
        fill = "Intrusion Location") +
   theme_minimal(base_size = 22) +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
@@ -130,10 +129,9 @@ female_intrusions_plot <- ggplot(predictions_stack, aes(x = season, y = predicte
         axis.text.x = element_text(hjust = 0.5, color = "black"),
         axis.text.y = element_text(color = "black"),
         axis.title.x = element_text(margin = margin(t=10)),
-        plot.title = element_text(size = 24, face = "bold", hjust = 0.5, margin = margin(b=50)),
-        plot.margin = margin(t = 20, r = 20, b = 10, l = 20),
+        plot.margin = margin(t = 60, r = 20, b = 10, l = 20),
         legend.position = "bottom",
-        legend.box.margin = margin(t = -30, r = 0, b = 0, l = 0))
+        legend.box.margin = margin(t = -25, r = 0, b = 0, l = 0))
 
 female_intrusions_plot
 
