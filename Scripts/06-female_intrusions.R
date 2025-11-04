@@ -138,6 +138,133 @@ female_intrusions_plot
 #save
 ggsave(filename = "Output/female_intrusions.jpeg", plot = female_intrusions_plot, width = 12, height = 7)
 
+# bar graph -------------
+predictions_side <- emm_male_df %>%
+  transmute(
+    season,
+    trap_location = "Female Midden",
+    predicted_proportion = prob,
+    lcl = asymp.LCL,
+    ucl = asymp.UCL) %>%
+  bind_rows(
+    emm_male_df %>%
+      transmute(
+        season,
+        trap_location = "Male Midden",
+        predicted_proportion = 1 - prob,
+        lcl = 1 - asymp.UCL,
+        ucl = 1 - asymp.LCL)) %>%
+  mutate(
+    trap_location = factor(trap_location, levels = c("Male Midden", "Female Midden")),
+    season = factor(season, levels = c("mating","lactation","non-breeding")))
+
+female_intrusions <- ggplot(
+  predictions_side,
+  aes(x = season, y = predicted_proportion, fill = trap_location)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_errorbar(
+    aes(ymin = lcl, ymax = ucl),
+    width = 0.15,
+    linewidth = 0.9,
+    position = position_dodge(width = 0.8)) +
+  geom_text(
+    data = sample_sizes,
+    aes(x = season, y = 1.1, label = paste0("n = ", total)),
+    inherit.aes = FALSE,
+    vjust = 0.4, size = 10) +
+  scale_x_discrete(
+    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
+    expand = expansion(mult = c(0.23, 0.23))) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1.05), clip = "off") +
+  scale_fill_manual(
+    values = c("Female Midden" = "#CC6677", "Male Midden" = "#88CCEE"),
+    breaks = c("Male Midden", "Female Midden")) +
+  labs(
+    x = "Reproductive Stage",
+    y = "Proportion of Total Intrusion Events",
+    fill = "Intrusion Location") +
+  theme_minimal(base_size = 22) +
+  theme(
+    panel.grid.major.y = element_line(color = "grey80", linewidth = 0.6),
+    panel.grid.minor.y = element_line(color = "grey90", linewidth = 0.4),
+    panel.grid.major.x = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
+    panel.grid = element_blank(),
+    axis.text.x = element_text(hjust = 0.5, color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.x = element_text(margin = margin(t = 10)),
+    plot.margin = margin(t = 60, r = 20, b = 10, l = 20),
+    legend.position = "bottom",
+    legend.box.margin = margin(t = -25, r = 0, b = 0, l = 0))
+
+female_intrusions
+
+#save
+ggsave(filename = "Output/female_intrusions_bar.jpeg", plot = female_intrusions, width = 12, height = 7)
+
+# Predictions and effect plot ---------------------------------------------------
+predictions_effect <- bind_rows(
+  # Female midden = prob
+  emm_male_df %>%
+    transmute(
+      season,
+      trap_location = "Female Midden",
+      estimate = prob,
+      lcl = asymp.LCL,
+      ucl = asymp.UCL),
+  # Male midden = 1 - prob (invert CI correctly)
+  emm_male_df %>%
+    transmute(
+      season,
+      trap_location = "Male Midden",
+      estimate = 1 - prob,
+      lcl = 1 - asymp.UCL,
+      ucl = 1 - asymp.LCL)) %>%
+  mutate(
+    trap_location = factor(trap_location, levels = c("Male Midden", "Female Midden")),
+    season = factor(season, levels = c("mating", "lactation", "non-breeding")))
+
+pos <- position_dodge(width = 0.35)
+
+effect_plot <- ggplot(predictions_effect,
+                      aes(x = season, y = estimate, colour = trap_location, group = trap_location)) +
+  geom_line(position = pos, linewidth = 1) +
+  geom_point(position = pos, size = 3.5) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl), position = pos, width = 0.12, linewidth = 0.9) +
+  geom_text(data = sample_sizes,
+            aes(x = season, y = 1.17, label = paste0("n = ", total)),
+            inherit.aes = FALSE, vjust = 0.5, size = 9) +
+  scale_x_discrete(
+    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
+    expand = expansion(mult = c(0.02, 0.02))) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1.10), clip = "off") +
+  scale_colour_manual(
+    values = c("Male Midden" = "#88CCEE", "Female Midden" = "#CC6677"),
+    breaks = c("Male Midden", "Female Midden"),
+    name = "Intrusion Location") +
+  labs(
+    x = "Reproductive Stage",
+    y = "Proportion of Total Intrusion Events") +
+  theme_minimal(base_size = 18.5) +
+  theme(
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.6),
+    panel.grid.minor.y = element_line(color = "grey92", linewidth = 0.4),
+    panel.grid.major.x = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
+    axis.text.x = element_text(hjust = 0.5, color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.x = element_text(margin = margin(t = 10)),
+    plot.margin = margin(t = 60, r = 20, b = 10, l = 20),
+    legend.position = "bottom",
+    legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
+
+effect_plot
+
+# save
+ggsave("Output/female_intrusions_effect.jpeg", plot = effect_plot, width = 12, height = 7)
+
 # # plot - raw data ----------------------------------------------------------
 # sex_ratios <- ggplot(intrusion_summary, aes(x = sex_ratio, y = prop_female, color = grid)) +
 #   geom_point(alpha = 0.6) +

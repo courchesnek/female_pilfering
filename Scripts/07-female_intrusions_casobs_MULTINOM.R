@@ -196,71 +196,160 @@ model_summary <- tidy(multi_model) %>%
 #save as csv
 write.csv(model_summary, "Output/MULTINOM_model_summary.csv", row.names = FALSE)
 
-# generate predictions from model and plot --------------------------------
-###1) build prediction dataset at mean sex-ratio ----
-newdata <- expand.grid(
-  repro_stage = factor(c("non-breeding", "mating", "lactation"),
-                       levels = c("non-breeding", "mating", "lactation")),
-  F_Mc = 0)  # mean-centered sex ratio
+# generate predictions from model and plot (stacked bar graph)--------------------------------
+# ###1) build prediction dataset at mean sex-ratio ----
+# newdata <- expand.grid(
+#   repro_stage = factor(c("non-breeding", "mating", "lactation"),
+#                        levels = c("non-breeding", "mating", "lactation")),
+#   F_Mc = 0)  # mean-centered sex ratio
+# 
+# ###2) predict class probabilities from multinomial model ----
+# predicted_probs <- predict(multi_model, newdata = newdata, type = "probs")
+# 
+# ###3) combine with newdata ----
+# plot_df <- cbind(newdata, as.data.frame(predicted_probs))
+# 
+# ###4) pivot longer for plotting ----
+# plot_long <- plot_df %>%
+#   pivot_longer(cols = c("male", "female", "own_midden"),
+#                names_to = "feeding_type",
+#                values_to = "prob") %>%
+#   mutate(
+#     feeding_type = recode(feeding_type,
+#                           male   = "Male midden (intrusion)",
+#                           female = "Female midden (intrusion)",
+#                           own_midden    = "Own midden"),
+#     feeding_type = factor(feeding_type, levels = c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")))
+# 
+# #total number of feeding events per season
+# sample_sizes <- female_feeding %>%
+#   group_by(repro_stage) %>%
+#   summarise(total = n(), .groups = "drop")
+# 
+# ###5) plot ----
+# female_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fill = feeding_type)) +
+#   geom_col(position = position_stack(reverse = TRUE), width = 0.96) +
+#   geom_text(data = sample_sizes,
+#             aes(x = repro_stage, y = 1.05, label = paste0("n = ", total)),
+#             inherit.aes = FALSE,
+#             vjust = 0.4, size = 9) +
+#   scale_x_discrete(
+#     limits = c("mating", "lactation", "non-breeding"),
+#     labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
+#     expand = c(0, 0)) +
+#   scale_y_continuous(labels = scales::percent_format(1), expand = c(0, 0)) +
+#   coord_cartesian(ylim = c(0, 1), clip = "off") +
+#   scale_fill_manual(values = c("Male midden (intrusion)" = "#88CCEE",
+#                                "Female midden (intrusion)" = "#CC6677",
+#                                "Own midden" = "#44AA99")) +
+#   labs(
+#     x     = "Reproductive Stage",
+#     y     = "Proportion of Total Feeding Events",
+#     fill  = "Feeding Location") +
+#   theme_minimal(base_size = 22) +
+#   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
+#         panel.grid = element_blank(),
+#         axis.text.x = element_text(hjust = 0.5, color = "black"),
+#         axis.text.y = element_text(color = "black"),
+#         axis.title.x = element_text(margin = margin(t = 10)),
+#         plot.margin = margin(t = 60, r = 30, b = 10, l = 20),
+#         legend.position = "bottom",
+#         legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
+# 
+# female_intrusions_casobs
+# 
+# #save plot
+# ggsave(filename = "Output/female_intrusions_casobs.jpeg", plot = female_intrusions_casobs, width = 12, height = 7)
+# 
 
-###2) predict class probabilities from multinomial model ----
-predicted_probs <- predict(multi_model, newdata = newdata, type = "probs")
 
-###3) combine with newdata ----
-plot_df <- cbind(newdata, as.data.frame(predicted_probs))
 
-###4) pivot longer for plotting ----
-plot_long <- plot_df %>%
-  pivot_longer(cols = c("male", "female", "own_midden"),
-               names_to = "feeding_type",
-               values_to = "prob") %>%
+
+# generate predictions from model and plot (regular bar graph with CIs)--------------------------------
+## 1) Get model-based probs + CIs at mean sex ratio
+emm_feed <- emmeans(
+  multi_model,
+  ~ feeding_type | repro_stage,
+  type = "response",
+  at   = list(F_Mc = 0))
+
+## 2) Convert to data frame and rename columns based on emmeans output
+pred_long <- as.data.frame(emm_feed) %>%
+  rename(
+    prob = prob,
+    lcl  = lower.CL,
+    ucl  = upper.CL) %>%
   mutate(
-    feeding_type = recode(feeding_type,
-                          male   = "Male midden (intrusion)",
-                          female = "Female midden (intrusion)",
-                          own_midden    = "Own midden"),
-    feeding_type = factor(feeding_type, levels = c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")))
+    feeding_type = recode(
+      feeding_type,
+      male       = "Male midden (intrusion)",
+      female     = "Female midden (intrusion)",
+      own_midden = "Own midden"),
+    feeding_type = factor(
+      feeding_type,
+      levels = c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")),
+    repro_stage = factor(
+      repro_stage,
+      levels = c("mating", "lactation", "non-breeding")))
 
-#total number of feeding events per season
+## 3) Sample sizes for “n = …” labels
 sample_sizes <- female_feeding %>%
   group_by(repro_stage) %>%
-  summarise(total = n(), .groups = "drop")
+  summarise(total = n(), .groups = "drop") %>%
+  mutate(repro_stage = factor(repro_stage, levels = c("mating","lactation","non-breeding")))
 
-###5) plot ----
-female_intrusions_casobs <- ggplot(plot_long, aes(x = repro_stage, y = prob, fill = feeding_type)) +
-  geom_col(position = position_stack(reverse = TRUE), width = 0.96) +
-  geom_text(data = sample_sizes,
-            aes(x = repro_stage, y = 1.05, label = paste0("n = ", total)),
-            inherit.aes = FALSE,
-            vjust = 0.4, size = 9) +
-  scale_x_discrete(
-    limits = c("mating", "lactation", "non-breeding"),
-    labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
-    expand = c(0, 0)) +
-  scale_y_continuous(labels = scales::percent_format(1), expand = c(0, 0)) +
-  coord_cartesian(ylim = c(0, 1), clip = "off") +
-  scale_fill_manual(values = c("Male midden (intrusion)" = "#88CCEE",
-                               "Female midden (intrusion)" = "#CC6677",
-                               "Own midden" = "#44AA99")) +
-  labs(
-    x     = "Reproductive Stage",
-    y     = "Proportion of Total Feeding Events",
-    fill  = "Feeding Location") +
+## 4) Plot side-by-side bars with aligned error bars and y-grid
+stage_lvls <- c("mating","lactation","non-breeding")
+ft_lvls    <- c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")
+ft_offset  <- c(-0.28, 0, +0.28)   # left / center / right within each stage
+
+pred_pos <- pred_long %>%
+  mutate(
+    repro_stage = factor(repro_stage, levels = stage_lvls),
+    feeding_type = factor(feeding_type, levels = ft_lvls),
+    stage_i = as.numeric(repro_stage),
+    offset  = ft_offset[as.integer(feeding_type)],
+    xpos    = stage_i + offset)
+
+sizes_pos <- sample_sizes %>%
+  mutate(xpos = as.numeric(factor(repro_stage, levels = stage_lvls)))
+
+female_intrusions_casobs <- ggplot(pred_pos, aes(x = xpos, y = prob, fill = feeding_type)) +
+  geom_col(width = 0.26) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl), width = 0.10, linewidth = 0.9) +
+  geom_text(data = sizes_pos,
+            aes(x = xpos, y = 1.17, label = paste0("n = ", total)),
+            inherit.aes = FALSE, vjust = 0.5, size = 9) +
+  scale_x_continuous(
+    breaks = 1:3,
+    labels = c("Mating","Lactation","Non-breeding"),
+    expand = expansion(mult = c(0.02, 0.02))) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1.10), clip = "off") +
+  scale_fill_manual(values = c(
+    "Male midden (intrusion)"   = "#88CCEE",
+    "Female midden (intrusion)" = "#CC6677",
+    "Own midden"                = "#44AA99")) +
+  labs(x = "Reproductive Stage", y = "Proportion of Total Feeding Events", fill = "Feeding Location") +
   theme_minimal(base_size = 22) +
-  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
-        panel.grid = element_blank(),
-        axis.text.x = element_text(hjust = 0.5, color = "black"),
-        axis.text.y = element_text(color = "black"),
-        axis.title.x = element_text(margin = margin(t = 10)),
-        plot.margin = margin(t = 60, r = 30, b = 10, l = 20),
-        legend.position = "bottom",
-        legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
+  theme(
+    panel.border       = element_rect(color = "black", fill = NA, linewidth = 0.75),
+    panel.grid.major.y = element_line(color = "grey80", linewidth = 0.6),
+    panel.grid.minor.y = element_line(color = "grey90", linewidth = 0.4),
+    panel.grid.major.x = element_blank(),
+    axis.text.x        = element_text(hjust = 0.5, color = "black"),
+    axis.text.y        = element_text(color = "black"),
+    axis.title.x       = element_text(margin = margin(t = 10)),
+    plot.margin        = margin(t = 60, r = 30, b = 10, l = 20),
+    legend.position    = "bottom",
+    legend.box.margin  = margin(t = -20, r = 10, b = 0, l = 0),
+    legend.text  = element_text(size = 18),
+    legend.title = element_text(size = 19))
 
 female_intrusions_casobs
 
-#save plot
-ggsave(filename = "Output/female_intrusions_casobs.jpeg", plot = female_intrusions_casobs, width = 12, height = 7)
-
+#save
+ggsave(filename = "Output/female_intrusions_casobs_bar.jpeg", plot = female_intrusions_casobs, width = 12, height = 7)
 
 # breakdown of intrusions -------------------------------------------------
 ##1) Extract coefficients ----
