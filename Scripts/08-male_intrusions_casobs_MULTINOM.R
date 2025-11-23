@@ -310,37 +310,28 @@ pred_pos <- pred_long %>%
 sizes_pos <- sample_sizes %>%
   mutate(xpos = as.numeric(factor(repro_stage, levels = stage_lvls)))
 
+#source theme
+source("Scripts/00-plot_theme.R")
+
 male_intrusions_casobs <- ggplot(pred_pos, aes(x = xpos, y = prob, fill = feeding_type)) +
-  geom_col(width = 0.26) +
-  geom_errorbar(aes(ymin = lcl, ymax = ucl), width = 0.10, linewidth = 0.9) +
-  geom_text(data = sizes_pos,
-            aes(x = xpos, y = 1.17, label = paste0("n = ", total)),
-            inherit.aes = FALSE, vjust = 0.5, size = 9) +
+  geom_col(width = 0.26, colour = "black", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl), width = 0.06, linewidth = 0.6) +
   scale_x_continuous(
     breaks = 1:3,
     labels = c("Mating","Lactation","Non-breeding"),
     expand = expansion(mult = c(0.02, 0.02))) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
-  coord_cartesian(ylim = c(0, 1.10), clip = "off") +
+  coord_cartesian(ylim = c(0, 1.0)) +
   scale_fill_manual(values = c(
     "Male midden (intrusion)"   = "#88CCEE",
     "Female midden (intrusion)" = "#CC6677",
     "Own midden"                = "#44AA99")) +
-  labs(x = "Reproductive Stage", y = "Proportion of Total Feeding Events", fill = "Feeding Location") +
-  theme_minimal(base_size = 22) +
+  labs(x = "Reproductive stage", 
+       y = "Proportion of total feeding events", fill = "Feeding location") +
+  theme_thesis() +
   theme(
-    panel.border       = element_rect(color = "black", fill = NA, linewidth = 0.75),
-    panel.grid.major.y = element_line(color = "grey80", linewidth = 0.6),
-    panel.grid.minor.y = element_line(color = "grey90", linewidth = 0.4),
-    panel.grid.major.x = element_blank(),
-    axis.text.x        = element_text(hjust = 0.5, color = "black"),
-    axis.text.y        = element_text(color = "black"),
-    axis.title.x       = element_text(margin = margin(t = 10)),
-    plot.margin        = margin(t = 60, r = 30, b = 10, l = 20),
-    legend.position    = "bottom",
-    legend.box.margin  = margin(t = -20, r = 10, b = 0, l = 0),
-    legend.text  = element_text(size = 18),
-    legend.title = element_text(size = 19))
+    legend.position = "bottom",
+    legend.margin = margin(t = -3))
 
 male_intrusions_casobs
 

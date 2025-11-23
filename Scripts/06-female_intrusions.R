@@ -227,38 +227,31 @@ predictions_effect <- bind_rows(
 
 pos <- position_dodge(width = 0.35)
 
+#source theme
+source("Scripts/00-plot_theme.R")
+
 effect_plot <- ggplot(predictions_effect,
                       aes(x = season, y = estimate, colour = trap_location, group = trap_location)) +
-  geom_line(position = pos, linewidth = 1) +
-  geom_point(position = pos, size = 3.5) +
-  geom_errorbar(aes(ymin = lcl, ymax = ucl), position = pos, width = 0.12, linewidth = 0.9) +
-  geom_text(data = sample_sizes,
-            aes(x = season, y = 1.17, label = paste0("n = ", total)),
-            inherit.aes = FALSE, vjust = 0.5, size = 9) +
+  geom_line(position = pos, linewidth = 0.9) +
+  geom_point(position = pos, size = 2.3) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl), position = pos, width = 0.15, linewidth = 0.7) +
   scale_x_discrete(
     labels = c("mating" = "Mating", "lactation" = "Lactation", "non-breeding" = "Non-breeding"),
     expand = expansion(mult = c(0.02, 0.02))) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
-  coord_cartesian(ylim = c(0, 1.10), clip = "off") +
+  coord_cartesian(ylim = c(0, 1.0)) +
   scale_colour_manual(
     values = c("Male Midden" = "#88CCEE", "Female Midden" = "#CC6677"),
     breaks = c("Male Midden", "Female Midden"),
-    name = "Intrusion Location") +
+    labels = c("Male midden", "Female midden"),
+    name = "Intrusion location") +
   labs(
-    x = "Reproductive Stage",
-    y = "Proportion of Total Intrusion Events") +
-  theme_minimal(base_size = 18.5) +
+    x = "Reproductive stage",
+    y = "Proportion of total intrusion events") +
+  theme_thesis() +
   theme(
-    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.6),
-    panel.grid.minor.y = element_line(color = "grey92", linewidth = 0.4),
-    panel.grid.major.x = element_blank(),
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.75),
-    axis.text.x = element_text(hjust = 0.5, color = "black"),
-    axis.text.y = element_text(color = "black"),
-    axis.title.x = element_text(margin = margin(t = 10)),
-    plot.margin = margin(t = 60, r = 20, b = 10, l = 20),
     legend.position = "bottom",
-    legend.box.margin = margin(t = -20, r = 0, b = 0, l = 0))
+    legend.margin = margin(t = 2))
 
 effect_plot
 
