@@ -1,5 +1,9 @@
 #load packages -----
 source("Scripts/00-packages.R")
+install.packages("sure")
+library(sure)
+install.packages("pscl")
+library(pscl)
 
 #connection to KRSP database --------
 con <- krsp_connect (host = "krsp.cepb5cjvqban.us-east-2.rds.amazonaws.com",
@@ -168,11 +172,22 @@ mod_data <- mod_data %>%
 ###3) fit a multinomial model with own_midden as reference (cannot include random effects in this model type) ----
 #okay since previous GLMM showed zero variance for feeder_id, midden_owner, and year
 #focused on population-level effects, not individual
-multi_model <- multinom(
-  feeding_type ~ F_Mc + repro_stage,
-  data = mod_data)
+multi_model <- multinom(feeding_type ~ F_Mc + repro_stage, data = mod_data)
 
 summary(multi_model)
+
+#model checks
+#check for multicolinearity
+car::vif(multi_model)
+
+pred <- predict(multi_model, type = "class")
+table(pred, mod_data$feeding_type)
+
+pscl::pR2(multi_model)
+
+sr <- residuals(multi_model, type = "surrogate")
+plot(sr)        
+hist(sr) 
 
 ###4) save model summary table ----
 model_summary <- tidy(multi_model) %>%
@@ -272,6 +287,7 @@ emm_feed <- emmeans(
   ~ feeding_type | repro_stage,
   type = "response",
   at   = list(F_Mc = 0))
+#model-based predicted proportions with asymmetric 95% CIs on response scale
 
 ## 2) Convert to data frame and rename columns based on emmeans output
 pred_long <- as.data.frame(emm_feed) %>%
@@ -361,6 +377,68 @@ get_probs <- function(stage, sex_ratio = 0) {
 get_probs("non-breeding")
 get_probs("mating")
 get_probs("lactation")
+
+
+# dummy plot for predictions
+dummy_female <- tibble(
+  repro_stage   = rep(c("mating","lactation","non-breeding"), each = 3),
+  feeding_type  = rep(c("Male midden (intrusion)",
+                        "Female midden (intrusion)",
+                        "Own midden"), times = 3),
+  prob = c(
+    # mating: females strongly intrude on male middens
+    0.75, 0.10, 0.15,
+    # lactation: mostly own midden, weak intrusions ~ random 50/50
+    0.20, 0.20, 0.60,
+    # non-breeding: same as lactation
+    0.20, 0.20, 0.60),
+  lcl = prob - 0.05,
+  ucl = prob + 0.05)
+
+
+dummy_female <- dummy_female %>%
+  mutate(
+    repro_stage = factor(repro_stage, levels = c("mating","lactation","non-breeding")),
+    feeding_type = factor(feeding_type,
+                          levels = c("Male midden (intrusion)",
+                                     "Female midden (intrusion)",
+                                     "Own midden")))
+
+ft_offset <- c(-0.28, 0, +0.28)
+
+dummy_female_pos <- dummy_female %>%
+  mutate(
+    stage_i = as.numeric(repro_stage),
+    offset  = ft_offset[as.integer(feeding_type)],
+    xpos    = stage_i + offset)
+
+female_predictions_obs <- ggplot(dummy_female_pos,
+       aes(x = xpos, y = prob, fill = feeding_type)) +
+  geom_col(width = 0.26, colour = "black", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl),
+                width = 0.06, linewidth = 0.6) +
+  scale_x_continuous(
+    breaks = 1:3,
+    labels = c("Mating","Lactation","Non-breeding")) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    expand = c(0,0)) +
+  coord_cartesian(ylim = c(0,1)) +
+  scale_fill_manual(values = c(
+    "Male midden (intrusion)"   = "#88CCEE",
+    "Female midden (intrusion)" = "#CC6677",
+    "Own midden"                = "#44AA99")) +
+  labs(
+    x = "Reproductive stage",
+    y = "Proportion of total feeding events",
+    fill = "Feeding location") +
+  theme_thesis() +
+  theme(legend.position = "bottom")
+
+female_predictions_obs
+
+#save
+ggsave(filename = "Output/female_predictions_obs.jpeg", plot = female_predictions_obs, width = 12, height = 7)
 
 # sample sizes -------------------------------------------------------------
 ##*own midden feeding total ----

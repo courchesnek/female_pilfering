@@ -268,6 +268,7 @@ emm_feed <- emmeans(
   ~ feeding_type | repro_stage,
   type = "response",
   at   = list(F_Mc = 0))
+# model-based predicted proportions with asymmetric 95% CIs on response scale
 
 ## 2) Convert to data frame and rename columns based on emmeans output
 pred_long <- as.data.frame(emm_feed) %>%
@@ -357,6 +358,67 @@ get_probs <- function(stage, sex_ratio = 0) {
 get_probs("non-breeding")
 get_probs("mating")
 get_probs("lactation")
+
+
+# dummy plot for predictions
+male_dummy <- tibble::tibble(
+  repro_stage   = factor(rep(c("mating","lactation","non-breeding"), each = 3),
+                         levels = c("mating","lactation","non-breeding")),
+  feeding_type  = factor(rep(c("Male midden (intrusion)",
+                               "Female midden (intrusion)",
+                               "Own midden"), times = 3),
+                         levels = c("Male midden (intrusion)",
+                                    "Female midden (intrusion)",
+                                    "Own midden")),
+  prob = c(
+    # mating — rare intrusions, high own-midden feeding
+    0.15, 0.05, 0.80,
+    # lactation — still rare intrusions
+    0.05, 0.05, 0.90,
+    # non-breeding — similarly rare
+    0.05, 0.05, 0.90),
+  lcl = prob - 0.02,   # simple fake CIs
+  ucl = prob + 0.02)
+
+stage_lvls <- c("mating","lactation","non-breeding")
+ft_lvls    <- c("Male midden (intrusion)", "Female midden (intrusion)", "Own midden")
+ft_offset  <- c(-0.28, 0, +0.28)
+
+male_dummy_pos <- male_dummy %>%
+  mutate(
+    stage_i = as.numeric(factor(repro_stage, levels = stage_lvls)),
+    offset  = ft_offset[as.integer(feeding_type)],
+    xpos    = stage_i + offset)
+
+
+male_predictions_obs <- ggplot(male_dummy_pos, aes(x = xpos, y = prob, fill = feeding_type)) +
+  geom_col(width = 0.26, colour = "black", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl), width = 0.06, linewidth = 0.6) +
+  scale_x_continuous(
+    breaks = 1:3,
+    labels = c("Mating","Lactation","Non-breeding"),
+    expand = expansion(mult = c(0.02, 0.02))) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    expand = c(0, 0)) +
+  coord_cartesian(ylim = c(0, 1.0)) +
+  scale_fill_manual(values = c(
+    "Male midden (intrusion)"   = "#88CCEE",
+    "Female midden (intrusion)" = "#CC6677",
+    "Own midden"                = "#44AA99")) +
+  labs(x = "Reproductive stage",
+       y = "Proportion of total feeding events",
+       fill = "Feeding location") +
+  theme_thesis() +
+  theme(
+    legend.position = "bottom",
+    legend.margin = margin(t = -3))
+
+male_predictions_obs
+
+#save
+ggsave(filename = "Output/male_predictions_obs.jpeg", plot = male_predictions_obs, width = 12, height = 7)
+
 
 # sample sizes -------------------------------------------------------------
 ##*own midden feeding total ----

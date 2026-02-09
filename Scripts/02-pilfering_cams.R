@@ -22,6 +22,9 @@ pilfering_long <- pilfering_sums %>%
     names_to = "category",
     values_to = "count")
 
+#source theme
+source("Scripts/00-plot_theme.R")
+
 pilfering <- ggplot(pilfering_long, aes(x = category, y = count, fill = category)) +
   geom_bar(stat = "identity") +
   scale_fill_brewer(palette = "Set3") +
@@ -40,8 +43,8 @@ pilfering <- ggplot(pilfering_long, aes(x = category, y = count, fill = category
   labs(
     x = NULL,
     y = "Number of Photos") +
-  theme_minimal() +
-  theme(text = element_text(size = 18),
+  theme_thesis() +
+  theme(text = element_text(size = 23),
         axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
 

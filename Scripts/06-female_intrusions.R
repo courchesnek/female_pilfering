@@ -54,7 +54,11 @@ summary(model)
 sim_res <- simulateResiduals(model) #remember: with large sample sizes, even very small deviations can become significant
 plot(sim_res) 
 
-testOutliers(sim_res) #no significant outliers, again large sample size can call small deviations significant outliers
+DHARMa::testDispersion(sim_res)
+
+testOutliers(sim_res, type = "bootstrap") #no significant outliers, again large sample size can call small deviations significant outliers
+
+car::vif(model)
 
 #how many years of data?
 length(unique(female_intrusions$year))
@@ -87,6 +91,7 @@ write.csv(model_output, "Output/model_output.csv", row.names = FALSE)
 emm_male <- emmeans(model, ~ season, 
                     at = list(F_M = mean(female_intrusions$F_M, na.rm = TRUE)),
                     type = "response")
+#model-based predicted proportions with asymmetric 95% CIs on probability scale
 emm_male_df <- as.data.frame(emm_male)
 
 #total number of intrusions per season
@@ -257,6 +262,68 @@ effect_plot
 
 # save
 ggsave("Output/female_intrusions_effect.jpeg", plot = effect_plot, width = 12, height = 7)
+
+# dummy plot for predictions
+dummy_pred <- tibble(
+  season = factor(c("mating", "lactation", "non-breeding"),
+                  levels = c("mating", "lactation", "non-breeding")),
+  male_prob = c(0.85, 0.50, 0.50),
+  male_lcl  = c(0.75, 0.40, 0.40),
+  male_ucl  = c(0.95, 0.60, 0.60)) %>%
+  mutate(
+    female_prob = 1 - male_prob,
+    female_lcl  = 1 - male_ucl,
+    female_ucl  = 1 - male_lcl) %>%
+  pivot_longer(
+    cols = c(male_prob, female_prob, male_lcl, male_ucl, female_lcl, female_ucl),
+    names_to = c("location", ".value"),
+    names_pattern = "(male|female)_(.*)") %>%
+  mutate(
+    trap_location = recode(location,
+                           "male" = "Male Midden",
+                           "female" = "Female Midden"),
+    trap_location = factor(trap_location,
+                           levels = c("Male Midden", "Female Midden")))
+
+pos <- position_dodge(width = 0.35)
+
+dummy_plot <- ggplot(dummy_pred,
+                     aes(x = season, 
+                         y = prob, 
+                         colour = trap_location, 
+                         group = trap_location)) +
+  geom_line(position = pos, linewidth = 0.9) +
+  geom_point(position = pos, size = 2.3) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl),
+                position = pos, 
+                width = 0.15, 
+                linewidth = 0.7) +
+  scale_x_discrete(
+    labels = c("mating" = "Mating",
+               "lactation" = "Lactation",
+               "non-breeding" = "Non-breeding"),
+    expand = expansion(mult = c(0.02, 0.02))) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     expand = c(0, 0),
+                     limits = c(0, 1)) +
+  scale_colour_manual(
+    values = c("Male Midden" = "#88CCEE",
+               "Female Midden" = "#CC6677"),
+    name   = "Intrusion location",
+    labels = c("Male midden", "Female midden")) +
+  theme_thesis() +
+  theme(
+    legend.position = "bottom",
+    legend.margin = margin(t = 2)) +
+  labs(
+    x = "Reproductive stage",
+    y = "Proportion of total intrusion events")
+
+dummy_plot
+
+#save
+ggsave("Output/female_intrusions_predictions.jpeg", plot = dummy_plot, width = 12, height = 7)
+
 
 # # plot - raw data ----------------------------------------------------------
 # sex_ratios <- ggplot(intrusion_summary, aes(x = sex_ratio, y = prop_female, color = grid)) +
